@@ -1,6 +1,6 @@
-const stmt_cache = Dict{String, SQLite.Stmt}()
+const stmt_cache = Dict{Tuple{SQLite.DB, String}, SQLite.Stmt}()
 function execute(db, query, args...)
-    stmt = get!(stmt_cache, query) do
+    stmt = get!(stmt_cache, (db, query)) do
         DBInterface.prepare(db, query)
     end
     DBInterface.execute(stmt, args...)
