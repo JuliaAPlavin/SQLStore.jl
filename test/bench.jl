@@ -38,10 +38,10 @@ end
 # ╔═╡ 91ce2d07-f209-46c0-aa90-d805318336e7
 length(tbl)
 
-# ╔═╡ ce74b435-9f1a-4b27-b342-0bb6c8388b62
+# ╔═╡ 8a5ed8c1-2bd0-41bb-9efe-26d97ac54c13
 @btimes only((a=1234,), tbl)
 
-# ╔═╡ 16586f76-272f-4c8b-ae3f-bf2bc284cfbf
+# ╔═╡ 9cd7e9fa-a383-43a6-8910-0e5f3571d35f
 @btimes only((a=1234,), tbl, Cols(:a))
 
 # ╔═╡ eec2b023-bbde-4da9-924e-1fbfc57e91e1
@@ -487,8 +487,8 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 # ╠═f9695bbe-b243-4def-8689-3dac78177f02
 # ╠═ef2cb01b-cf38-47ab-b068-58bac0f454a2
 # ╠═91ce2d07-f209-46c0-aa90-d805318336e7
-# ╠═ce74b435-9f1a-4b27-b342-0bb6c8388b62
-# ╠═16586f76-272f-4c8b-ae3f-bf2bc284cfbf
+# ╠═8a5ed8c1-2bd0-41bb-9efe-26d97ac54c13
+# ╠═9cd7e9fa-a383-43a6-8910-0e5f3571d35f
 # ╠═909878e7-64af-4fb9-b227-05584393c826
 # ╠═eec2b023-bbde-4da9-924e-1fbfc57e91e1
 # ╠═b5388bdb-5f03-42aa-866d-60341241156a

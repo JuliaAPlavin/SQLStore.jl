@@ -44,11 +44,13 @@ process_insert_field(x::DateTime) = Dates.format(x, dateformat"yyyy-mm-dd HH:MM:
 process_insert_field(x::Dict) = JSON3.write(x)
 process_insert_field(x::Vector) = JSON3.write(x)
 
-process_select_row(schema, row) = process_select_row(schema, NamedTuple(row))
-function process_select_row(schema, row::NamedTuple{names}) where {names}
-    NamedTuple{names}(map(names) do k
-        process_select_field(k == ROWID_NAME ? Rowid : schema[k].type, row[k])
-    end)
+process_select_row(schema, row::SQLite.Row) = process_select_row(schema, row, Val(Tuple(Tables.columnnames(row))))
+@generated function process_select_row(schema, row, ::Val{names}) where {names}
+    values = map(enumerate(names)) do (i, k)
+        T = k == ROWID_NAME ? :(Rowid) : :(schema.$k.type)
+        :(process_select_field($T, Tables.getcolumn(row, $i)))
+    end
+    :( NamedTuple{$names}(($(values...),)) )
 end
 process_select_field(T::Type, x) = x::T
 process_select_field(::Type{Rowid}, x) = x::Int
