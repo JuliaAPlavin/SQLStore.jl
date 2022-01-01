@@ -8,22 +8,29 @@ using Test
     db = SQLite.DB()
     create_table(db, "tbl_pk", @NamedTuple{a::Int, b::String, c::Dict, d::DateTime}; constraint="PRIMARY KEY (a)")
 
-    tbl = table(db, "tbl_pk")
-    @show tbl
-    @test length(tbl) == 0
-    for i in 1:10
-        push!(tbl, (a=i, b="xyz $i", c=Dict("key" => "value $i"), d=DateTime(2020, 1, 2, 3, 4, i)))
+    @testset "populate table" begin
+        tbl = table(db, "tbl_pk")
+        @show tbl
+        @test length(tbl) == 0
+        for i in 1:10
+            push!(tbl, (a=i, b="xyz $i", c=Dict("key" => "value $i"), d=DateTime(2020, 1, 2, 3, 4, i)))
+        end
+        @test_throws SQLite.SQLiteException push!(tbl, (a=1, b="", c=Dict(), d=now()))
+        @test length(tbl) == 10
+        @test length(collect(tbl)) == 10
     end
-    @test_throws SQLite.SQLiteException push!(tbl, (a=1, b="", c=Dict(), d=now()))
-    @test length(tbl) == 10
-    @test length(collect(tbl)) == 10
 
-    @test count("a = 3", tbl) == 1
-    @test count((;a=3), tbl) == 1
-    @test count("a >= 3", tbl) == 8
-    @test any("a >= 3", tbl)
+    @testset "summaries" begin
+        tbl = table(db, "tbl_pk")
+        @test count("a = 3", tbl) == 1
+        @test count((;a=3), tbl) == 1
+        @test count("a >= 3", tbl) == 8
+        @test any("a >= 3", tbl)
+    end
 
-    let row = (a=3, b="xyz 3", c=Dict(:key => "value 3"), d=DateTime(2020, 1, 2, 3, 4, 3))
+    @testset "select" begin
+        tbl = table(db, "tbl_pk")
+        row = (a=3, b="xyz 3", c=Dict(:key => "value 3"), d=DateTime(2020, 1, 2, 3, 4, 3))
         @test collect(tbl)[3] == row
         @test collect(tbl, WithRowid())[3] == (; _rowid_=3, row...)
 
@@ -52,45 +59,51 @@ using Test
         @test_throws ArgumentError only((;), tbl)
     end
 
-    update!("a = 3" => "b = 'def'", tbl)
-    @test_throws SQLite.SQLiteException update!("a = 5" => ("b = :xyz", (baz="XXX",)), tbl)
-    update!("a = 5" => ("b = :xyz", (xyz="word",)), tbl)
-    update!((a=4,) => (b="abc", d=DateTime(1900)), tbl)
-    update!((a=6,) => (a=60,), tbl)
-    updateonly!((a=7,) => (a=70,), tbl)
-    @test_throws ArgumentError updateonly!((a=7,) => (a=70,), tbl)
-    update!((a=-10,) => (a=100,), tbl)
-    @test_throws ArgumentError updateonly!((a=-10,) => (a=100,), tbl)
-    @test_throws ArgumentError updateonly!("a >= 3" => "b = b", tbl)
-    updatesome!("a >= 3" => "b = b", tbl)
-    @test_throws ArgumentError updatesome!("a < 0" => "b = b", tbl)
-    @test only((a=3,), tbl).b == "def"
-    @test only((a=5,), tbl).b == "word"
-    @test only((a=4,), tbl).b == "abc"
-    @test only((a=4,), tbl).d == DateTime(1900)
-    @test filter((a=6,), tbl) |> isempty
-    @test only((a=60,), tbl).a == 60
-    @test only((a=70,), tbl).a == 70
+    @testset "update" begin
+        tbl = table(db, "tbl_pk")
+        update!("a = 3" => "b = 'def'", tbl)
+        @test_throws SQLite.SQLiteException update!("a = 5" => ("b = :xyz", (baz="XXX",)), tbl)
+        update!("a = 5" => ("b = :xyz", (xyz="word",)), tbl)
+        update!((a=4,) => (b="abc", d=DateTime(1900)), tbl)
+        update!((a=6,) => (a=60,), tbl)
+        updateonly!((a=7,) => (a=70,), tbl)
+        @test_throws ArgumentError updateonly!((a=7,) => (a=70,), tbl)
+        update!((a=-10,) => (a=100,), tbl)
+        @test_throws ArgumentError updateonly!((a=-10,) => (a=100,), tbl)
+        @test_throws ArgumentError updateonly!("a >= 3" => "b = b", tbl)
+        updatesome!("a >= 3" => "b = b", tbl)
+        @test_throws ArgumentError updatesome!("a < 0" => "b = b", tbl)
+        @test only((a=3,), tbl).b == "def"
+        @test only((a=5,), tbl).b == "word"
+        @test only((a=4,), tbl).b == "abc"
+        @test only((a=4,), tbl).d == DateTime(1900)
+        @test filter((a=6,), tbl) |> isempty
+        @test only((a=60,), tbl).a == 60
+        @test only((a=70,), tbl).a == 70
 
-    let r = only((c=Dict("key" => "value 2"),), tbl)
-        updateonly!(r => (c=Dict(),), tbl)
-        @test only((c=Dict(),), tbl).a == 2
-    end
-    let r = only((c=Dict(),), tbl, WithRowid())
-        updateonly!((;r._rowid_) => (c=Dict("k" => "v"),), tbl)
-        @test only((a=2,), tbl).c == Dict(:k => "v")
+        let r = only((c=Dict("key" => "value 2"),), tbl)
+            updateonly!(r => (c=Dict(),), tbl)
+            @test only((c=Dict(),), tbl).a == 2
+        end
+        let r = only((c=Dict(),), tbl, WithRowid())
+            updateonly!((;r._rowid_) => (c=Dict("k" => "v"),), tbl)
+            @test only((a=2,), tbl).c == Dict(:k => "v")
+        end
     end
 
-    @test length(tbl) == 10
-    delete!("a >= 10", tbl)
-    @test length(tbl) == 7
-    deleteonly!((a=1,), tbl)
-    @test length(tbl) == 6
-    @test_throws ArgumentError deleteonly!((a=1,), tbl)
-    @test_throws ArgumentError deletesome!((a=1,), tbl)
-    @test length(tbl) == 6
-    deletesome!((a=2,), tbl)
-    @test length(tbl) == 5
+    @testset "delete" begin
+        tbl = table(db, "tbl_pk")
+        @test length(tbl) == 10
+        delete!("a >= 10", tbl)
+        @test length(tbl) == 7
+        deleteonly!((a=1,), tbl)
+        @test length(tbl) == 6
+        @test_throws ArgumentError deleteonly!((a=1,), tbl)
+        @test_throws ArgumentError deletesome!((a=1,), tbl)
+        @test length(tbl) == 6
+        deletesome!((a=2,), tbl)
+        @test length(tbl) == 5
+    end
 
     @testset "rowid column" begin
         create_table(db, "tbl_rowid1", @NamedTuple{x::Int})
@@ -110,7 +123,7 @@ using Test
     # ensure that no open sqlite statements are kept - otherwise dropping table would error
     execute(db, "drop table tbl_pk")
 
-    @testset begin
+    @testset "more complex types" begin
         create_table(db, "tbl_nt", @NamedTuple{a::Union{Int, Missing}, b::Dict, c::Vector})
         tbl = table(db, "tbl_nt")
         # all are valid...
