@@ -150,7 +150,7 @@ function update!((qwhere, qset)::Pair, tbl::Table; returning=nothing)
     wstr, wparams = query_to_sql(tbl, qwhere)
     sstr, sparams = setquery_to_sql(tbl, qset)
     ret_str = isnothing(returning) ? "" : "returning $returning"
-    qres = execute(tbl.db, "update $(tbl.name) set $(sstr) where $(wstr) $ret_str", merge_nosame(wparams, sparams))
+    execute(tbl.db, "update $(tbl.name) set $(sstr) where $(wstr) $ret_str", merge_nosame(wparams, sparams))
 end
 
 function updateonly!(queries, tbl::Table)
