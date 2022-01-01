@@ -104,7 +104,7 @@ end
 
 function Base.any(query, tbl::Table)
     qstr, params = query_to_sql(tbl, query)
-    any(_ -> true, execute(tbl.db, "select * from $(tbl.name) where $(qstr) limit 1", params))
+    !isempty(execute(tbl.db, "select $ROWID_NAME from $(tbl.name) where $(qstr) limit 1", params) |> rowtable)
 end
 
 
