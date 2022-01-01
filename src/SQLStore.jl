@@ -21,23 +21,10 @@ export
     schema, columnnames
 
 
-const stmt_cache = Dict{String, SQLite.Stmt}()
-function execute(db, query, args...)
-    stmt = get!(stmt_cache, query) do
-        DBInterface.prepare(db, query)
-    end
-    DBInterface.execute(stmt, args...)
-end
+include("utils.jl")
+include("sql.jl")
+include("conversion.jl")
 
-
-const SUPPORTED_TYPES_DOC = """
-Supported types:
-- `Int`, `Float64`, `String` are directly stored as corresponding SQL types.
-- `Bool`s stored as `0` and `1` `INTEGER`s.
-- `DateTime`s are stored as `TEXT` with the `'%Y-%m-%d %H:%M:%f'` format.
-- `Dict`s and `Vector`s get translated to their `JSON` representations.
-- Any type can be combined with `Missing` as in `Union{Int, Missing}`. This allows `NULL`s in the corresponding column.
-"""
 
 """ `create_table(db, name, T::Type{NamedTuple}; [constraints])`
 
@@ -174,58 +161,6 @@ function Base.any(query, tbl::Table)
     !isempty(execute(tbl.db, "select $ROWID_NAME from $(tbl.name) where $(qstr) limit 1", params) |> rowtable)
 end
 
-
-const ROWID_NAME = :_rowid_
-
-""" `Rowid()` has two uses in `SQLStore`.
-- In `create_table()`: specify that a field is an `SQLite` `rowid`, that is `integer primary key`.
-- In select column definitions: specify that the table `rowid` should explicitly be included in the results. The returned rowid field is named `$ROWID_NAME`.
-"""
-struct Rowid end
-
-# for backwards compatibility - WithRowid was used in SQLStore before
-abstract type RowidSpec end
-struct WithRowid <: RowidSpec end
-
-const COL_NAME_TYPE = Union{Symbol, String}
-const COL_NAMES_TYPE = Union{
-    NTuple{N, Symbol} where {N},
-    NTuple{N, String} where {N},
-    Vector{Symbol},
-    Vector{String},
-}
-default_select(_) = All()
-select2sql(tbl, s::Cols) = join((select2sql(tbl, ss) for ss in s.cols), ", ")
-select2sql(tbl, s::COL_NAME_TYPE) = s
-select2sql(tbl, s::Rowid) = "$ROWID_NAME as $ROWID_NAME"
-select2sql(tbl, s::All) = (@assert isempty(s.cols); "*")
-select2sql(tbl, s::WithRowid) = "$ROWID_NAME as $ROWID_NAME, *"  # backwards compatibility
-select2sql(tbl, s::Not{<:COL_NAMES_TYPE}) = select2sql(tbl, Cols(filter(∉(s.skip), schema(tbl).names)...))
-select2sql(tbl, s::Not{<:COL_NAME_TYPE}) = select2sql(tbl, Not((s.skip,)))
-
-const SELECT_QUERY_DOC = """
-Each row corresponds to a `NamedTuple`. Fields are converted according to the table `schema`, see `create_table` for details.
-
-The optional `select` argument specifies fields to return, in one of the following ways.
-- `All()`, the default: select all columns.
-- A `Symbol`: select a single column by name.
-- `Rowid()`: select the SQLite rowid column, named $ROWID_NAME in the results.
-- `Cols(...)`: multiple columns, each defined as above.
-- `Not(...)`: all columns excluding those listed in `Not`.
-"""
-const WHERE_QUERY_DOC = """
-The filtering `query` corresponds to the SQL `WHERE` clause. It can be specified in one of the following forms:
-- `NamedTuple`: specified fields are matched against corresponding table columns, combined with `AND`. Values are converted to corresponding SQL types, see `create_table` for details.
-- `String`: kept as-is.
-- Tuple `(String, args...)`: the `String` is passed to `WHERE` as-is, `args` are SQL statement parameters and can be referred as `?`.
-- Tuple `(String, NamedTuple)`: the `String` is passed to `WHERE` as-is, the `NamedTuple` contains SQL statement parameters that can be referred by name, `:param_name`.
-"""
-const SET_QUERY_DOC = """
-The `qset` part corresponds to the SQL `SET` clause in `UPDATE`. Can be specified in the following ways:
-- `NamedTuple`: specified fields correspond to table columns. Values are converted to their SQL types, see `create_table` for details.
-- `String`: kept as-is.
-- Tuple `(String, NamedTuple)`: the `String` is passed to `SET` as-is, the `NamedTuple` contains SQL statement parameters that can be referred by name, `:param_name`.
-"""
 
 """ `collect(tbl::Table, [select])`
 
@@ -377,94 +312,6 @@ $WHERE_QUERY_DOC
 function deletesome!(query, tbl::Table)
     qres = delete!(query, tbl; returning=ROWID_NAME) |> rowtable
     isempty(qres) && throw(ArgumentError("No rows were deleted. WHERE query: $query"))
-end
-
-
-limit_to_sql(lim::Nothing) = ""
-limit_to_sql(lim::Int) = "limit $lim"
-
-query_to_sql(tbl, q::AbstractString) = q, (;)
-query_to_sql(tbl, q::NamedTuple{()}) = "1", (;)  # always-true filter
-query_to_sql(tbl, q::NamedTuple) = @p begin
-    map(keys(q), values(q)) do k, v
-        "$k = :$k"
-    end
-    return join(↑, " and "), process_insert_row(q)
-end
-query_to_sql(tbl, q::Tuple{AbstractString, Vararg}) = first(q), Base.tail(q)
-query_to_sql(tbl, q::Tuple{AbstractString, NamedTuple}) = first(q), last(q)
-
-setquery_to_sql(tbl, q::AbstractString) = q, (;)
-setquery_to_sql(tbl, q::NamedTuple) = @p begin
-    @aside prefix = :_SET_
-    map(keys(q), values(q)) do k, v
-        "$k = :$prefix$k"
-    end
-    return join(↑, ", "), add_prefix_to_fieldnames(process_insert_row(q), Val(prefix))
-end
-setquery_to_sql(tbl, q::Tuple{AbstractString, NamedTuple}) = first(q), last(q)
-
-process_insert_row(row) = map(process_insert_field, row)
-process_insert_field(x) = x
-process_insert_field(x::DateTime) = Dates.format(x, dateformat"yyyy-mm-dd HH:MM:SS.sss")
-process_insert_field(x::Dict) = JSON3.write(x)
-process_insert_field(x::Vector) = JSON3.write(x)
-
-process_select_row(schema, row) = process_select_row(schema, NamedTuple(row))
-function process_select_row(schema, row::NamedTuple{names}) where {names}
-    NamedTuple{names}(map(names) do k
-        process_select_field(k == ROWID_NAME ? Rowid : schema[k].type, row[k])
-    end)
-end
-process_select_field(T::Type, x) = x::T
-process_select_field(::Type{Rowid}, x) = x::Int
-process_select_field(::Type{DateTime}, x) = DateTime(x, dateformat"yyyy-mm-dd HH:MM:SS.sss")
-process_select_field(::Type{Dict}, x) = copy(JSON3.read(x))
-
-colspec(name, ::Type{Rowid}) = "$name integer primary key"
-function colspec(name, T::Type)
-    ct = coltype(T)
-    cc = colcheck(name, T)
-    spec = isempty(cc) ? "$name $ct" : "$name $ct check ($cc)"
-    strip(spec)
-end
-
-# specify integer type as "int", not "integer": we don't want our columns to become rowid
-# this is done for more reliable updating
-coltype(::Type{Bool}) = "int not null"
-coltype(::Type{Int}) = "int not null"
-coltype(::Type{Float64}) = "real not null"
-coltype(::Type{String}) = "text not null"
-coltype(::Type{DateTime}) = "text not null"
-coltype(::Type{Dict}) = "text not null"
-coltype(::Type{Vector}) = "text not null"
-coltype(::Type{Any}) = ""
-coltype(::Type{Union{T, Missing}}) where {T} = replace(coltype(T), " not null" => "")
-
-colcheck(name, ::Type{Bool}) = "$name in (0, 1)"
-colcheck(name, ::Type{Int}) = "typeof($name) = 'integer'"
-colcheck(name, ::Type{Float64}) = "typeof($name) = 'real'"
-colcheck(name, ::Type{String}) = "typeof($name) = 'text'"
-colcheck(name, ::Type{DateTime}) = "typeof($name) = 'text' and $name == strftime('%Y-%m-%d %H:%M:%f', $name)"
-colcheck(name, ::Type{Dict}) = "json_valid($name)"
-colcheck(name, ::Type{Vector}) = "json_valid($name)"
-colcheck(name, ::Type{Any}) = ""
-colcheck(name, ::Type{Union{T, Missing}}) where {T} = "($(colcheck(name, T))) or $name is null"
-
-
-@generated function add_prefix_to_fieldnames(nt::NamedTuple, ::Val{prefix}) where {prefix}
-    spec = map(fieldnames(nt)) do k
-        new_k = "$prefix$k" |> Symbol
-        :( $new_k = nt.$k )
-    end
-    quote
-        ($(spec...),)
-    end
-end
-
-function merge_nosame(a::NamedTuple{na}, b::NamedTuple{nb}) where {na, nb}
-    @assert isdisjoint(na, nb)
-    merge(a, b)
 end
 
 end
