@@ -10,7 +10,8 @@ export
     create_table, table,
     update!, updateonly!, updatesome!,
     deleteonly!, deletesome!,
-    WithRowid, WithoutRowid, Rowid
+    WithRowid, WithoutRowid, Rowid,
+    sample
 
 
 function create_table(db, table_name::AbstractString, T::Type{<:NamedTuple}; constraint=nothing)
@@ -136,6 +137,23 @@ end
 
 Base.first(query, tbl::Table, rowid::RowidSpec=WithoutRowid()) = filter(query, tbl, rowid; limit=1) |> only
 Base.only(query, tbl::Table, rowid::RowidSpec=WithoutRowid()) = filter(query, tbl, rowid; limit=2) |> only
+
+function sample(query, tbl::Table, n::Int, rowid::RowidSpec=WithoutRowid(); replace=true)
+    if n > 1 && replace
+        throw(ArgumentError("Sampling multiple elements with replacement is not supported"))
+    end
+    qstr, params = query_to_sql(tbl, query)
+    qres = execute(tbl.db, "select $(rowid_select_sql(rowid)) * from $(tbl.name) where $(qstr) order by random() limit $n", params)
+    res = map(qres) do r
+        process_select_row(tbl.schema, r)
+    end
+    length(res) < n && error("Cannot draw more samples without replacement")
+    return res
+end
+
+sample(tbl::Table, n::Int, rowid::RowidSpec=WithoutRowid(); replace=true) = sample((;), tbl, n, rowid; replace)
+Base.rand(query, tbl::Table, rowid::RowidSpec=WithoutRowid()) = sample(query, tbl, 1, rowid) |> only
+Base.rand(tbl::Table, rowid::RowidSpec=WithoutRowid()) = rand((;), tbl, rowid)
 
 ## Query doesn't get closed - database may remain locked
 # function Iterators.filter(query, tbl::Table, rowid::RowidSpec=WithoutRowid())

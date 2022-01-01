@@ -59,6 +59,32 @@ using Test
         @test_throws ArgumentError only((;), tbl)
     end
 
+    @testset "random" begin
+        tbl = table(db, "tbl_pk")
+        let rows = collect(tbl)
+            @test rand(tbl) ∈ rows
+
+            @test_throws ArgumentError sample(tbl, 3)
+            @test length(sample(tbl, 3; replace=false)) == 3
+            @test issubset(sample(tbl, 3; replace=false), rows)
+            @test length(unique(sample(tbl, 3; replace=false))) == 3
+
+            @test sort(sample(tbl, 10; replace=false)) == sort(rows)
+            @test_throws ErrorException sample(tbl, 100; replace=false)
+        end
+        let rows = filter("a >= 3", tbl)
+            @test rand("a >= 3", tbl) ∈ rows
+
+            @test_throws ArgumentError sample("a >= 3", tbl, 3)
+            @test length(sample("a >= 3", tbl, 3; replace=false)) == 3
+            @test issubset(sample("a >= 3", tbl, 3; replace=false), rows)
+            @test length(unique(sample("a >= 3", tbl, 3; replace=false))) == 3
+
+            @test sort(sample("a >= 3", tbl, 8; replace=false)) == sort(rows)
+            @test_throws ErrorException sample("a >= 3", tbl, 100; replace=false)
+        end
+    end
+
     @testset "update" begin
         tbl = table(db, "tbl_pk")
         update!("a = 3" => "b = 'def'", tbl)
