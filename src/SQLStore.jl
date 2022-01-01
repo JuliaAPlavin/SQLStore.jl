@@ -64,7 +64,7 @@ end
 
 Base.@kwdef struct Table
     db
-    name::AbstractString
+    name::String
     schema
 end
 
