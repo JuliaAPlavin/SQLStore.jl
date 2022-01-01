@@ -178,6 +178,9 @@ function Base.filter(query, tbl::Table, select=default_select(tbl); limit=nothin
 end
 
 Base.first(query, tbl::Table, select=default_select(tbl)) = filter(query, tbl, select; limit=1) |> only
+Base.first(query, tbl::Table, n::Int, select=default_select(tbl)) = filter(query, tbl, select; limit=n)
+Base.first(tbl::Table, select=default_select(tbl)) = filter("1", tbl, select; limit=1) |> only
+Base.first(tbl::Table, n::Int, select=default_select(tbl)) = filter("1", tbl, select; limit=n)
 Base.only(query, tbl::Table, select=default_select(tbl)) = filter(query, tbl, select; limit=2) |> only
 
 function sample(query, tbl::Table, n::Int, select=default_select(tbl); replace=true)
