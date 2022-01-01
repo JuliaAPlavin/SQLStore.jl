@@ -6,7 +6,7 @@ import JSON3
 using Tables: rowtable
 using DataPipes
 
-export create_table, table, update, updateonly, updatesome, WithRowid, WithoutRowid
+export create_table, table, update, updateonly, updatesome, WithRowid, WithoutRowid, Rowid
 
 
 function create_table(db, table_name::AbstractString, T::Type{<:NamedTuple}; constraint=nothing)
@@ -48,9 +48,15 @@ function parse_sql_to_schema(sql::AbstractString)
     lines[end] == ")" || throw(err)
 
     types = [
-        TM
-        for T in [Bool, Int, Float64, String, DateTime, Dict, Any]
-        for TM in (T isa UnionAll || T == Any ? [T] : [T, Union{T, Missing}])
+        [
+            TM
+            for T in [Bool, Int, Float64, String, DateTime]
+            for TM in [T, Union{T, Missing}]
+        ];
+        # UnionAlls don't work with missing for now:
+        Dict;
+        # don't need missing:
+        Any; Rowid;
     ]
     @p begin
         lines[2:end]
@@ -195,6 +201,8 @@ process_select_field(_, x) = x
 process_select_field(::Type{DateTime}, x) = DateTime(x, dateformat"yyyy-mm-dd HH:MM:SS.sss")
 process_select_field(::Type{Dict}, x) = copy(JSON3.read(x))
 
+struct Rowid end
+colspec(name, ::Type{Rowid}) = "$name integer primary key"
 function colspec(name, T::Type)
     ct = coltype(T)
     cc = colcheck(name, T)
@@ -202,8 +210,10 @@ function colspec(name, T::Type)
     strip(spec)
 end
 
-coltype(::Type{Bool}) = "integer not null"
-coltype(::Type{Int}) = "integer not null"
+# specify integer type as "int", not "integer": we don't want our columns to become rowid
+# this is done for more reliable updating
+coltype(::Type{Bool}) = "int not null"
+coltype(::Type{Int}) = "int not null"
 coltype(::Type{Float64}) = "real not null"
 coltype(::Type{String}) = "text not null"
 coltype(::Type{DateTime}) = "text not null"

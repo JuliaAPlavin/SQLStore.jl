@@ -81,6 +81,16 @@ using Test
         updateonly((;r._rowid_) => (c=Dict("k" => "v"),), tbl)
         @test only((a=2,), tbl).c == Dict(:k => "v")
     end
+
+    @testset "rowid column" begin
+        create_table(db, "tbl_rowid1", @NamedTuple{x::Int})
+        create_table(db, "tbl_rowid2", @NamedTuple{x::Union{Int, Missing}})
+        create_table(db, "tbl_rowid3", @NamedTuple{x::Rowid})
+        
+        @test_throws SQLite.SQLiteException push!(table(db, "tbl_rowid1"), (;))
+        @test_throws SQLite.SQLiteException push!(table(db, "tbl_rowid2"), (;))
+        @test_throws SQLite.SQLiteException push!(table(db, "tbl_rowid3"), (;))
+    end
 end
 
 
