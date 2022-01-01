@@ -8,8 +8,10 @@ using Tables: rowtable, schema, columnnames
 using DataPipes
 using InvertedIndices: Not
 import DataAPI: All, Cols, ncol, nrow
+import SQLite
 
 export
+    SQLite,
     create_table, table,
     update!, updateonly!, updatesome!,
     deleteonly!, deletesome!,
@@ -216,7 +218,7 @@ The `qset` part corresponds to the SQL `SET` clause in `UPDATE`. Can be specifie
 - Tuple `(String, NamedTuple)`: the `String` is passed to `SET` as-is, the `NamedTuple` contains SQL statement parameters that can be referred by name, `:param_name`.
 """
 
-""" `collect(tbl::Table, [select])``
+""" `collect(tbl::Table, [select])`
 
 Collect all rows from the `tbl` table.
 

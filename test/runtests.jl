@@ -1,5 +1,4 @@
 using SQLStore
-import SQLite
 using Dates: DateTime, now
 using DBInterface: execute
 using Test
