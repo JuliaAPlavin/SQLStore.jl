@@ -202,10 +202,8 @@ function colspec(name, T::Type)
     strip(spec)
 end
 
-# specify integer type as "int", not "integer": we don't want our columns to become rowid
-# this is done for more reliable updating
-coltype(::Type{Bool}) = "int not null"
-coltype(::Type{Int}) = "int not null"
+coltype(::Type{Bool}) = "integer not null"
+coltype(::Type{Int}) = "integer not null"
 coltype(::Type{Float64}) = "real not null"
 coltype(::Type{String}) = "text not null"
 coltype(::Type{DateTime}) = "text not null"
