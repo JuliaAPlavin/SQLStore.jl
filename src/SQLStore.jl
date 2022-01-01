@@ -18,7 +18,24 @@ export
     Not, All, Cols, ncol, nrow,
     schema, columnnames
 
-function create_table(db, table_name::AbstractString, T::Type{<:NamedTuple}; constraint=nothing)
+
+const SUPPORTED_TYPES_DOC = """
+Supported types:
+- `Int`, `Float64`, `String` are directly stored as corresponding SQL types.
+- `Bool`s stored as `0` and `1` `INTEGER`s.
+- `DateTime`s are stored as `TEXT` with the `'%Y-%m-%d %H:%M:%f'` format.
+- `Dict`s and `Vector`s get translated to their `JSON` representations.
+- Any type can be combined with `Missing` as in `Union{Int, Missing}`. This allows `NULL`s in the corresponding column.
+"""
+
+""" `create_table(db, name, T::Type{NamedTuple}; [constraints])`
+
+Create a table with `name` in the database `db` with column specifications derived from the type `T`.
+Table constraints can be specified by the `constraints` argument.
+
+$SUPPORTED_TYPES_DOC
+"""
+function create_table(db, table_name::AbstractString, T::Type{<:NamedTuple}; constraints=nothing)
     occursin(r"^\w+$", table_name) || throw("Table name cannot contain special symbols: got $table_name")
     field_specs = map(fieldnames(T), fieldtypes(T)) do name, type
         (occursin(r"^\w+$", string(name)) && name != ROWID_NAME) || throw("Column name cannot contain special symbols: got $name")
@@ -29,7 +46,7 @@ function create_table(db, table_name::AbstractString, T::Type{<:NamedTuple}; con
         $(join(field_specs, ",\n    "))
 
         -- CONSTRAINTS
-        $(isnothing(constraint) ? "" : "," * constraint)
+        $(isnothing(constraints) ? "" : "," * constraints)
     )"""
     execute(db, stmt)
 end
@@ -43,6 +60,16 @@ end
 Tables.schema(tbl::Table) = Tables.Schema(keys(tbl.schema), @p tbl.schema |> map(_.type))
 Tables.columnnames(tbl::Table) = keys(tbl.schema)
 
+""" Obtain the `SQLStore.Table` object corresponding to the table `name` in database `db`.
+
+The returned object supports:
+- `SELECT`ing rows with `collect`, `filter`, `first`, `only`. Random row selection: `sample`, `rand`.
+- `UPDATE`ing rows with `update!`, `updateonly!`, `updatesome!`.
+- `DELETE`ing rows with `delete!`, `deleteonly!`, `deletesome!`.
+- `INSERT`ing rows with `push!`, `append!`.
+- Retrieving metadata with `schema`, `columnnames`, `ncol`.
+- Other: `nrow`, `length`, `count`, `any`.
+"""
 function table(db, name::AbstractString)
     sql_def = @p execute(db, "select * from sqlite_schema where name = :name", (;name)) |> rowtable |> only |> (↑).sql
     Table(; db, name, schema=parse_sql_to_schema(sql_def))
@@ -90,7 +117,10 @@ function parse_sql_to_schema(sql::AbstractString)
     end
 end
 
+""" `push!(tbl::Table, row::NamedTuple)`
 
+Insert the `row` to `tbl`. Field values are converted to SQL types.
+"""
 function Base.push!(tbl::Table, row::NamedTuple)
     vals = process_insert_row(row)
     fnames = keys(vals)
@@ -162,13 +192,48 @@ select2sql(tbl, s::WithRowid) = "$ROWID_NAME as $ROWID_NAME, *"  # backwards com
 select2sql(tbl, s::Not{<:COL_NAMES_TYPE}) = select2sql(tbl, Cols(filter(∉(s.skip), schema(tbl).names)...))
 select2sql(tbl, s::Not{<:COL_NAME_TYPE}) = select2sql(tbl, Not((s.skip,)))
 
+const SELECT_QUERY_DOC = """
+Each row corresponds to a `NamedTuple`. Fields are converted according to the table `schema`, see `create_table` for details.
 
+The optional `select` argument specifies fields to return, in one of the following ways.
+- `All()`, the default: select all columns.
+- A `Symbol`: select a single column by name.
+- `Rowid()`: select the SQLite rowid column, named $ROWID_NAME in the results.
+- `Cols(...)`: multiple columns, each defined as above.
+- `Not(...)`: all columns excluding those listed in `Not`.
+"""
+const WHERE_QUERY_DOC = """
+The filtering `query` corresponds to the SQL `WHERE` clause. It can be specified in one of the following forms:
+- `NamedTuple`: specified fields are matched against corresponding table columns, combined with `AND`. Values are converted to corresponding SQL types, see `create_table` for details.
+- `String`: kept as-is.
+- Tuple `(String, args...)`: the `String` is passed to `WHERE` as-is, `args` are SQL statement parameters and can be referred as `?`.
+- Tuple `(String, NamedTuple)`: the `String` is passed to `WHERE` as-is, the `NamedTuple` contains SQL statement parameters that can be referred by name, `:param_name`.
+"""
+const SET_QUERY_DOC = """
+The `qset` part corresponds to the SQL `SET` clause in `UPDATE`. Can be specified in the following ways:
+- `NamedTuple`: specified fields correspond to table columns. Values are converted to their SQL types, see `create_table` for details.
+- `String`: kept as-is.
+- Tuple `(String, NamedTuple)`: the `String` is passed to `SET` as-is, the `NamedTuple` contains SQL statement parameters that can be referred by name, `:param_name`.
+"""
+
+""" `collect(tbl::Table, [select])``
+
+Collect all rows from the `tbl` table.
+
+$SELECT_QUERY_DOC
+"""
 function Base.collect(tbl::Table, select=default_select(tbl))
     map(execute(tbl.db, "select $(select2sql(tbl, select)) from $(tbl.name)")) do r
         process_select_row(tbl.schema, r)
     end
 end
 
+""" Select rows from the `tbl` table filtered by the `query`.
+
+$WHERE_QUERY_DOC
+
+$SELECT_QUERY_DOC
+"""
 function Base.filter(query, tbl::Table, select=default_select(tbl); limit=nothing)
     qstr, params = query_to_sql(tbl, query)
     qres = execute(tbl.db, "select $(select2sql(tbl, select)) from $(tbl.name) where $(qstr) $(limit_to_sql(limit))", params)
@@ -177,10 +242,27 @@ function Base.filter(query, tbl::Table, select=default_select(tbl); limit=nothin
     end
 end
 
+""" `first([query], tbl::Table, [n::Int], [select])`
+
+Select the first row or the first `n` rows from the `tbl` table, optionally filtered by the `query`. Technically, order not specified by SQL and can be arbitrary.
+
+$WHERE_QUERY_DOC
+
+$SELECT_QUERY_DOC
+"""
 Base.first(query, tbl::Table, select=default_select(tbl)) = filter(query, tbl, select; limit=1) |> only
 Base.first(query, tbl::Table, n::Int, select=default_select(tbl)) = filter(query, tbl, select; limit=n)
 Base.first(tbl::Table, select=default_select(tbl)) = filter("1", tbl, select; limit=1) |> only
 Base.first(tbl::Table, n::Int, select=default_select(tbl)) = filter("1", tbl, select; limit=n)
+
+""" `only(query, tbl::Table, [select])`
+
+Select the only row from the `tbl` table filtered by the `query`. Throw an exception if zero or multiple rows match `query`.
+
+$WHERE_QUERY_DOC
+
+$SELECT_QUERY_DOC
+"""
 Base.only(query, tbl::Table, select=default_select(tbl)) = filter(query, tbl, select; limit=2) |> only
 
 function sample(query, tbl::Table, n::Int, select=default_select(tbl); replace=true)
@@ -209,6 +291,14 @@ Base.rand(tbl::Table, select=default_select(tbl)) = rand((;), tbl, select)
 #     end
 # end
 
+""" `update!(query => qset, tbl::Table)`
+
+Update rows that match `query` with the `qset` specification.
+
+$WHERE_QUERY_DOC
+
+$SET_QUERY_DOC
+"""
 function update!((qwhere, qset)::Pair, tbl::Table; returning=nothing)
     wstr, wparams = query_to_sql(tbl, qwhere)
     sstr, sparams = setquery_to_sql(tbl, qset)
@@ -216,30 +306,63 @@ function update!((qwhere, qset)::Pair, tbl::Table; returning=nothing)
     execute(tbl.db, "update $(tbl.name) set $(sstr) where $(wstr) $ret_str", merge_nosame(wparams, sparams))
 end
 
+""" `updateonly!(query => qset, tbl::Table)`
+
+Update the only row that matches `query` with the `qset` specification. Throw an exception if zero or multiple rows match `query`.
+
+$WHERE_QUERY_DOC
+
+$SET_QUERY_DOC
+"""
 function updateonly!(queries, tbl::Table)
     qres = update!(queries, tbl; returning=ROWID_NAME) |> rowtable
     isempty(qres) && throw(ArgumentError("No rows were updated. Query: $queries"))
     length(qres) > 1 && throw(ArgumentError("More than one row was updated: $(length(qres)). Query: $queries"))
 end
 
+""" `updatesome!(query => qset, tbl::Table)`
+
+Update rows that match `query` with the `qset` specification. Throw an exception if no rows match `query`.
+
+$WHERE_QUERY_DOC
+
+$SET_QUERY_DOC
+"""
 function updatesome!(queries, tbl::Table)
     qres = update!(queries, tbl; returning=ROWID_NAME) |> rowtable
     isempty(qres) && throw(ArgumentError("No rows were updated. Query: $queries"))
 end
 
+""" `delete!(query, tbl::Table)`
 
+Delete rows that match `query` from the `tbl` Table.
+
+$WHERE_QUERY_DOC
+"""
 function Base.delete!(query, tbl::Table; returning=nothing)
     str, params = query_to_sql(tbl, query)
     ret_str = isnothing(returning) ? "" : "returning $returning"
     execute(tbl.db, "delete from $(tbl.name) where $(str) $ret_str", params)
 end
 
+""" `deleteonly!(query, tbl::Table)`
+
+Delete the only row that matches `query` from the `tbl` Table. Throw an exception if zero or multiple rows match `query`.
+
+$WHERE_QUERY_DOC
+"""
 function deleteonly!(query, tbl::Table)
     qres = delete!(query, tbl; returning=ROWID_NAME) |> rowtable
     isempty(qres) && throw(ArgumentError("No rows were deleted. WHERE query: $query"))
     length(qres) > 1 && throw(ArgumentError("More than one row was deleted: $(length(qres)). WHERE query: $query"))
 end
 
+""" `deletesome!(query, tbl::Table)`
+
+Delete rows that match `query` from the `tbl` Table. Throw an exception if no rows match `query`.
+
+$WHERE_QUERY_DOC
+"""
 function deletesome!(query, tbl::Table)
     qres = delete!(query, tbl; returning=ROWID_NAME) |> rowtable
     isempty(qres) && throw(ArgumentError("No rows were deleted. WHERE query: $query"))

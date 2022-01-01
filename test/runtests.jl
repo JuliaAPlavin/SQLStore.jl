@@ -6,7 +6,7 @@ using Test
 
 @testset begin
     db = SQLite.DB()
-    create_table(db, "tbl_pk", @NamedTuple{a::Int, b::String, c::Dict, d::DateTime}; constraint="PRIMARY KEY (a)")
+    create_table(db, "tbl_pk", @NamedTuple{a::Int, b::String, c::Dict, d::DateTime}; constraints="PRIMARY KEY (a)")
 
     @testset "populate table" begin
         tbl = table(db, "tbl_pk")
@@ -155,7 +155,7 @@ using Test
         create_table(db, "tbl_rowid1", @NamedTuple{x::Int})
         create_table(db, "tbl_rowid2", @NamedTuple{x::Union{Int, Missing}})
         create_table(db, "tbl_rowid3", @NamedTuple{x::Rowid})
-        create_table(db, "tbl_rowid4", @NamedTuple{x::Union{Int, Missing}}; constraint="primary key (x)")
+        create_table(db, "tbl_rowid4", @NamedTuple{x::Union{Int, Missing}}; constraints="primary key (x)")
         
         @test_throws SQLite.SQLiteException push!(table(db, "tbl_rowid1"), (;))
         push!(table(db, "tbl_rowid2"), (;))
