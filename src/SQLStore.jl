@@ -1,6 +1,6 @@
 module SQLStore
 
-using DBInterface: execute, executemany
+import DBInterface
 using Dates
 import JSON3
 import Tables
@@ -19,6 +19,15 @@ export
     sample,
     Not, All, Cols, ncol, nrow,
     schema, columnnames
+
+
+const stmt_cache = Dict{String, SQLite.Stmt}()
+function execute(db, query, args...)
+    stmt = get!(stmt_cache, query) do
+        DBInterface.prepare(db, query)
+    end
+    DBInterface.execute(stmt, args...)
+end
 
 
 const SUPPORTED_TYPES_DOC = """
