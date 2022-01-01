@@ -6,14 +6,16 @@ import JSON3
 import Tables
 using Tables: rowtable, schema, columnnames
 using DataPipes
-import DataAPI: All, ncol, nrow
+using InvertedIndices: Not
+import DataAPI: All, Cols, ncol, nrow
 
 export
     create_table, table,
     update!, updateonly!, updatesome!,
     deleteonly!, deletesome!,
-    WithRowid, WithoutRowid, Rowid,
+    WithRowid, Rowid,
     sample,
+    Not, All, Cols, ncol, nrow,
     schema, columnnames
 
 function create_table(db, table_name::AbstractString, T::Type{<:NamedTuple}; constraint=nothing)
@@ -121,36 +123,57 @@ end
 
 
 const ROWID_NAME = :_rowid_
+
+""" `Rowid()` has two uses in `SQLStore`.
+- In `create_table()`: specify that a field is an `SQLite` `rowid`, that is `integer primary key`.
+- In select column definitions: specify that the table `rowid` should explicitly be included in the results. The returned rowid field is named `$ROWID_NAME`.
+"""
+struct Rowid end
+
+# for backwards compatibility - WithRowid was used in SQLStore before
 abstract type RowidSpec end
 struct WithRowid <: RowidSpec end
-struct WithoutRowid <: RowidSpec end
-rowid_select_sql(::WithoutRowid) = ""
-rowid_select_sql(::WithRowid) = "$ROWID_NAME as $ROWID_NAME,"
+
+const COL_NAME_TYPE = Union{Symbol, String}
+const COL_NAMES_TYPE = Union{
+    NTuple{N, Symbol} where {N},
+    NTuple{N, String} where {N},
+    Vector{Symbol},
+    Vector{String},
+}
+default_select(_) = All()
+select2sql(tbl, s::Cols) = join((select2sql(tbl, ss) for ss in s.cols), ", ")
+select2sql(tbl, s::COL_NAME_TYPE) = s
+select2sql(tbl, s::Rowid) = "$ROWID_NAME as $ROWID_NAME"
+select2sql(tbl, s::All) = (@assert isempty(s.cols); "*")
+select2sql(tbl, s::WithRowid) = "$ROWID_NAME as $ROWID_NAME, *"  # backwards compatibility
+select2sql(tbl, s::Not{<:COL_NAMES_TYPE}) = select2sql(tbl, Cols(filter(∉(s.skip), schema(tbl).names)...))
+select2sql(tbl, s::Not{<:COL_NAME_TYPE}) = select2sql(tbl, Not((s.skip,)))
 
 
-function Base.collect(tbl::Table, rowid::RowidSpec=WithoutRowid())
-    map(execute(tbl.db, "select $(rowid_select_sql(rowid)) * from $(tbl.name)")) do r
+function Base.collect(tbl::Table, select=default_select(tbl))
+    map(execute(tbl.db, "select $(select2sql(tbl, select)) from $(tbl.name)")) do r
         process_select_row(tbl.schema, r)
     end
 end
 
-function Base.filter(query, tbl::Table, rowid::RowidSpec=WithoutRowid(); limit=nothing)
+function Base.filter(query, tbl::Table, select=default_select(tbl); limit=nothing)
     qstr, params = query_to_sql(tbl, query)
-    qres = execute(tbl.db, "select $(rowid_select_sql(rowid)) * from $(tbl.name) where $(qstr) $(limit_to_sql(limit))", params)
+    qres = execute(tbl.db, "select $(select2sql(tbl, select)) from $(tbl.name) where $(qstr) $(limit_to_sql(limit))", params)
     map(qres) do r
         process_select_row(tbl.schema, r)
     end
 end
 
-Base.first(query, tbl::Table, rowid::RowidSpec=WithoutRowid()) = filter(query, tbl, rowid; limit=1) |> only
-Base.only(query, tbl::Table, rowid::RowidSpec=WithoutRowid()) = filter(query, tbl, rowid; limit=2) |> only
+Base.first(query, tbl::Table, select=default_select(tbl)) = filter(query, tbl, select; limit=1) |> only
+Base.only(query, tbl::Table, select=default_select(tbl)) = filter(query, tbl, select; limit=2) |> only
 
-function sample(query, tbl::Table, n::Int, rowid::RowidSpec=WithoutRowid(); replace=true)
+function sample(query, tbl::Table, n::Int, select=default_select(tbl); replace=true)
     if n > 1 && replace
         throw(ArgumentError("Sampling multiple elements with replacement is not supported"))
     end
     qstr, params = query_to_sql(tbl, query)
-    qres = execute(tbl.db, "select $(rowid_select_sql(rowid)) * from $(tbl.name) where $(qstr) order by random() limit $n", params)
+    qres = execute(tbl.db, "select $(select2sql(tbl, select)) from $(tbl.name) where $(qstr) order by random() limit $n", params)
     res = map(qres) do r
         process_select_row(tbl.schema, r)
     end
@@ -158,12 +181,12 @@ function sample(query, tbl::Table, n::Int, rowid::RowidSpec=WithoutRowid(); repl
     return res
 end
 
-sample(tbl::Table, n::Int, rowid::RowidSpec=WithoutRowid(); replace=true) = sample((;), tbl, n, rowid; replace)
-Base.rand(query, tbl::Table, rowid::RowidSpec=WithoutRowid()) = sample(query, tbl, 1, rowid) |> only
-Base.rand(tbl::Table, rowid::RowidSpec=WithoutRowid()) = rand((;), tbl, rowid)
+sample(tbl::Table, n::Int, select=default_select(tbl); replace=true) = sample((;), tbl, n, select; replace)
+Base.rand(query, tbl::Table, select=default_select(tbl)) = sample(query, tbl, 1, select) |> only
+Base.rand(tbl::Table, select=default_select(tbl)) = rand((;), tbl, select)
 
 ## Query doesn't get closed - database may remain locked
-# function Iterators.filter(query, tbl::Table, rowid::RowidSpec=WithoutRowid())
+# function Iterators.filter(query, tbl::Table, select=default_select(tbl))
 #     qstr, params = query_to_sql(tbl, query)
 #     qres = execute(tbl.db, "select $(rowid_select_sql(rowid)) * from $(tbl.name) where $(qstr)", params)
 #     Iterators.map(qres) do r
@@ -232,8 +255,6 @@ setquery_to_sql(tbl, q::NamedTuple) = @p begin
 end
 setquery_to_sql(tbl, q::Tuple{AbstractString, NamedTuple}) = first(q), last(q)
 
-struct Rowid end
-
 process_insert_row(row) = map(process_insert_field, row)
 process_insert_field(x) = x
 process_insert_field(x::DateTime) = Dates.format(x, dateformat"yyyy-mm-dd HH:MM:SS.sss")
@@ -242,14 +263,9 @@ process_insert_field(x::Vector) = JSON3.write(x)
 
 process_select_row(schema, row) = process_select_row(schema, NamedTuple(row))
 function process_select_row(schema, row::NamedTuple{names}) where {names}
-    res = map(schema, Base.structdiff(row, NamedTuple{(ROWID_NAME,)})) do sch, val
-        process_select_field(sch.type, val)
-    end
-    return if first(names) == ROWID_NAME
-        merge(NamedTuple{(ROWID_NAME,)}(row[ROWID_NAME]), res)
-    else
-        res
-    end
+    NamedTuple{names}(map(names) do k
+        process_select_field(k == ROWID_NAME ? Rowid : schema[k].type, row[k])
+    end)
 end
 process_select_field(T::Type, x) = x::T
 process_select_field(::Type{Rowid}, x) = x::Int

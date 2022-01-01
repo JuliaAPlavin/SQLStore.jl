@@ -37,6 +37,11 @@ using Test
         row = (a=3, b="xyz 3", c=Dict(:key => "value 3"), d=DateTime(2020, 1, 2, 3, 4, 3))
         @test collect(tbl)[3] == row
         @test collect(tbl, WithRowid())[3] == (; _rowid_=3, row...)
+        @test collect(tbl, All())[3] == row
+        @test collect(tbl, Cols(:a, :b))[3] == (; a=3, b="xyz 3")
+        @test collect(tbl, Cols(:a, Rowid(), :b))[3] == (; a=3, _rowid_=3, b="xyz 3")
+        @test collect(tbl, Not(:c))[3] == (a=3, b="xyz 3", d=DateTime(2020, 1, 2, 3, 4, 3))
+        @test collect(tbl, Not((:c, :d)))[3] == (a=3, b="xyz 3")
 
         @test filter("a = 3", tbl) == [row]
         @test filter(("a = ?", 3), tbl) == [row]
