@@ -88,8 +88,10 @@ using Test
         create_table(db, "tbl_rowid3", @NamedTuple{x::Rowid})
         
         @test_throws SQLite.SQLiteException push!(table(db, "tbl_rowid1"), (;))
-        @test_throws SQLite.SQLiteException push!(table(db, "tbl_rowid2"), (;))
-        @test_throws SQLite.SQLiteException push!(table(db, "tbl_rowid3"), (;))
+        push!(table(db, "tbl_rowid2"), (;))
+        @test only((;), table(db, "tbl_rowid2")).x === missing
+        push!(table(db, "tbl_rowid3"), (;))
+        @test only((;), table(db, "tbl_rowid3")).x == 1
     end
 end
 

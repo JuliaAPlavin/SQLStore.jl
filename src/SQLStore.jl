@@ -80,13 +80,17 @@ end
 
 
 function Base.push!(tbl::Table, row::NamedTuple)
-    fnames = keys(tbl.schema)
     vals = process_insert_row(row)
-    execute(
-        tbl.db,
-        "insert into $(tbl.name) ($(join(fnames, ", "))) values ($(join(":" .* string.(fnames), ", ")))",
-        vals
-    )
+    fnames = keys(vals)
+    if isempty(vals)
+        execute(tbl.db, "insert into $(tbl.name) default values")
+    else
+        execute(
+            tbl.db,
+            "insert into $(tbl.name) ($(join(fnames, ", "))) values ($(join(":" .* string.(fnames), ", ")))",
+            vals
+        )
+    end
 end
 
 function Base.length(tbl::Table)
