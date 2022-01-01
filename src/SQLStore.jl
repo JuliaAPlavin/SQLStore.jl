@@ -5,6 +5,7 @@ using Dates
 import JSON3
 using Tables: rowtable
 using DataPipes
+import DataAPI: All, ncol, nrow
 
 export
     create_table, table,
@@ -98,6 +99,8 @@ function Base.push!(tbl::Table, row::NamedTuple)
     end
 end
 
+ncol(tbl::Table) = length(tbl.schema)
+nrow(tbl::Table) = length(tbl)
 function Base.length(tbl::Table)
     execute(tbl.db, "select count(*) from $(tbl.name)") |> rowtable |> only |> only
 end
