@@ -9,6 +9,7 @@ using DataPipes
 export
     create_table, table,
     update!, updateonly!, updatesome!,
+    deleteonly!, deletesome!,
     WithRowid, WithoutRowid, Rowid
 
 
@@ -161,6 +162,24 @@ end
 function updatesome!(queries, tbl::Table)
     qres = update!(queries, tbl; returning=ROWID_NAME) |> rowtable
     isempty(qres) && throw("No rows were updated. WHERE query: $qwhere")
+end
+
+
+function Base.delete!(query, tbl::Table; returning=nothing)
+    str, params = query_to_sql(tbl, query)
+    ret_str = isnothing(returning) ? "" : "returning $returning"
+    execute(tbl.db, "delete from $(tbl.name) where $(str) $ret_str", params)
+end
+
+function deleteonly!(query, tbl::Table)
+    qres = delete!(query, tbl; returning=ROWID_NAME) |> rowtable
+    isempty(qres) && throw("No rows were deleted. WHERE query: $query")
+    length(qres) > 1 && throw("More than one row was deleted: $(length(qres)). WHERE query: $query")
+end
+
+function deletesome!(query, tbl::Table)
+    qres = delete!(query, tbl; returning=ROWID_NAME) |> rowtable
+    isempty(qres) && throw("No rows were deleted. WHERE query: $query")
 end
 
 

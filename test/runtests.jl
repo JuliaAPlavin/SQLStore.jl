@@ -82,6 +82,17 @@ using Test
         @test only((a=2,), tbl).c == Dict(:k => "v")
     end
 
+    @test length(tbl) == 10
+    delete!("a >= 10", tbl)
+    @test length(tbl) == 7
+    deleteonly!((a=1,), tbl)
+    @test length(tbl) == 6
+    @test_throws Any deleteonly!((a=1,), tbl)
+    @test_throws Any deletesome!((a=1,), tbl)
+    @test length(tbl) == 6
+    deletesome!((a=2,), tbl)
+    @test length(tbl) == 5
+
     @testset "rowid column" begin
         create_table(db, "tbl_rowid1", @NamedTuple{x::Int})
         create_table(db, "tbl_rowid2", @NamedTuple{x::Union{Int, Missing}})
