@@ -96,6 +96,9 @@ using Test
         @test only((;), table(db, "tbl_rowid3")).x == 1
         @test only((;), table(db, "tbl_rowid4")).x === missing
     end
+
+    # ensure that no open sqlite statements are kept - otherwise dropping table would error
+    execute(db, "drop table tbl_pk")
 end
 
 
