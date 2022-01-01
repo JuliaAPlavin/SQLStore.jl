@@ -32,7 +32,7 @@ Base.@kwdef struct Table
 end
 
 function table(db, name::AbstractString)
-    sql_def = first(execute(db, "select * from sqlite_schema where name = :name", (;name))).sql
+    sql_def = @p execute(db, "select * from sqlite_schema where name = :name", (;name)) |> rowtable |> only |> (↑).sql
     Table(; db, name, schema=parse_sql_to_schema(sql_def))
 end
 
@@ -90,12 +90,12 @@ function Base.push!(tbl::Table, row::NamedTuple)
 end
 
 function Base.length(tbl::Table)
-    execute(tbl.db, "select count(*) from $(tbl.name)") |> first |> only
+    execute(tbl.db, "select count(*) from $(tbl.name)") |> rowtable |> only |> only
 end
 
 function Base.count(query, tbl::Table)
     qstr, params = query_to_sql(tbl, query)
-    execute(tbl.db, "select count(*) from $(tbl.name) where $(qstr)", params) |> first |> only
+    execute(tbl.db, "select count(*) from $(tbl.name) where $(qstr)", params) |> rowtable |> only |> only
 end
 
 function Base.any(query, tbl::Table)
@@ -129,13 +129,14 @@ end
 Base.first(query, tbl::Table, rowid::RowidSpec=WithoutRowid()) = filter(query, tbl, rowid; limit=1) |> only
 Base.only(query, tbl::Table, rowid::RowidSpec=WithoutRowid()) = filter(query, tbl, rowid; limit=2) |> only
 
-function Iterators.filter(query, tbl::Table, rowid::RowidSpec=WithoutRowid())
-    qstr, params = query_to_sql(tbl, query)
-    qres = execute(tbl.db, "select $(rowid_select_sql(rowid)) * from $(tbl.name) where $(qstr)", params)
-    Iterators.map(qres) do r
-        process_select_row(tbl.schema, r)
-    end
-end
+## Query doesn't get closed - database may remain locked
+# function Iterators.filter(query, tbl::Table, rowid::RowidSpec=WithoutRowid())
+#     qstr, params = query_to_sql(tbl, query)
+#     qres = execute(tbl.db, "select $(rowid_select_sql(rowid)) * from $(tbl.name) where $(qstr)", params)
+#     Iterators.map(qres) do r
+#         process_select_row(tbl.schema, r)
+#     end
+# end
 
 function update((qwhere, qset)::Pair, tbl::Table; returning=nothing)
     wstr, wparams = query_to_sql(tbl, qwhere)

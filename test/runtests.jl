@@ -34,7 +34,7 @@ using Test
         @test filter(("a = :xyz", (xyz=3,)), tbl) == [row]
         @test filter((a=3,), tbl) == [row]
         @test filter((d=DateTime(2020, 1, 2, 3, 4, 3),), tbl) == [row]
-        @test filter("a <= 3", tbl) == collect(Iterators.filter("a <= 3", tbl))
+        @test_broken filter("a <= 3", tbl) == collect(Iterators.filter("a <= 3", tbl))
 
         @test filter((;), tbl) == collect(tbl)
         @test filter((;), tbl; limit=3) |> length == 3
