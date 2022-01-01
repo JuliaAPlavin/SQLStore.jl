@@ -111,6 +111,7 @@ function Base.filter(query, tbl::Table; limit=nothing)
     end
 end
 
+Base.first(query, tbl::Table) = filter(query, tbl; limit=1) |> only
 Base.only(query, tbl::Table) = filter(query, tbl; limit=2) |> only
 
 function Iterators.filter(query, tbl::Table)

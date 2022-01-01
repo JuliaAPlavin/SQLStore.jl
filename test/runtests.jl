@@ -42,6 +42,8 @@ using Test
         @test filter((a=3, d=DateTime(2020, 1, 2, 3, 4, 4)), tbl) |> isempty
         @test filter((c=Dict(:key => "xxx"),), tbl) |> isempty
 
+        @test first((a=3,), tbl) == row
+        @test first("a >= 3", tbl) == row
         @test only((a=3,), tbl) == row
         @test only((b="xyz 3",), tbl) == row
         @test only((a=3, d=DateTime(2020, 1, 2, 3, 4, 3)), tbl) == row
