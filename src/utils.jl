@@ -1,6 +1,9 @@
-const stmt_cache = Dict{Tuple{SQLite.DB, String}, SQLite.Stmt}()
+const stmt_cache = [
+    Dict{Tuple{SQLite.DB, String}, SQLite.Stmt}()
+    for _ in 1:Threads.nthreads()
+]
 function execute(db, query, args...)
-    stmt = get!(stmt_cache, (db, query)) do
+    stmt = get!(stmt_cache[Threads.threadid()], (db, query)) do
         DBInterface.prepare(db, query)
     end
     DBInterface.execute(stmt, args...)

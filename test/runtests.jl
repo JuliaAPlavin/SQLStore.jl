@@ -183,6 +183,28 @@ using Test
         @test isequal(only("a is null", tbl), (a=missing, b=[1, 2, 3], c=[1, 2, 3]))
         @test only((;a=4), tbl) == (a=4, b=[1, 2, 3], c=Dict(:a => 5))
     end
+
+    if Threads.nthreads() == 1
+        @warn "Julia is started with a single thread, cannot test multithreading"
+    end
+    @testset "multithreaded" begin
+        create_table(db, "tbl_thread", @NamedTuple{a::Union{Int, Missing}, b::Dict, c::Vector})
+        tbl = table(db, "tbl_thread")
+        N = 10^3
+        @sync for i in 1:N
+            Threads.@spawn push!(tbl, (a=i, b=Dict("key" => "value $i"), c=rand(1:i, 3)))
+        end
+        @test length(tbl) == N
+        @sync for i in 1:N
+            @async push!(tbl, (a=N + i, b=Dict("key" => "value $i"), c=rand(1:i, 3)))
+        end
+        @test length(tbl) == 2*N
+        Threads.@threads for i in 1:N
+            push!(tbl, (a=2*N + i, b=Dict("key" => "value $i"), c=rand(1:i, 3)))
+        end
+        @test length(tbl) == 3*N
+        @test asyncmap(i -> only((a=i,), tbl), 1:(3*N)) == sort(collect(tbl), by=r -> r.a)
+    end
 end
 
 
