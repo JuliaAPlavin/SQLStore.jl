@@ -38,10 +38,13 @@ end
 # ╔═╡ 91ce2d07-f209-46c0-aa90-d805318336e7
 length(tbl)
 
-# ╔═╡ 8a5ed8c1-2bd0-41bb-9efe-26d97ac54c13
+# ╔═╡ 1dbb520f-5768-49f1-a03d-5fb43876ef9e
+only((a=1234,), tbl)
+
+# ╔═╡ 11722c8a-f086-4fc8-8840-c2d7a5bbd1d2
 @btimes only((a=1234,), tbl)
 
-# ╔═╡ 9cd7e9fa-a383-43a6-8910-0e5f3571d35f
+# ╔═╡ 16824dd2-bbf9-4f08-ad0f-1ea20c7b41cf
 @btimes only((a=1234,), tbl, Cols(:a))
 
 # ╔═╡ eec2b023-bbde-4da9-924e-1fbfc57e91e1
@@ -50,10 +53,10 @@ SQLStore.stmt_cache
 # ╔═╡ b5388bdb-5f03-42aa-866d-60341241156a
 @profview for _ in 1:500_000 only((a=rand(1:10^5),), tbl, Cols(:a)) end
 
-# ╔═╡ 5c288adf-6599-4cb6-aae1-8e41c7149c8e
+# ╔═╡ c046f3a0-9941-4f83-8f5d-b0742a266f1b
 @btimes only((a=rand(1:10^5),), tbl)
 
-# ╔═╡ 31d1cdc5-c01c-4af4-a16c-a755d35a4e2b
+# ╔═╡ bd8e67c9-50eb-445d-b001-1aa3b74e444e
 @btimes only((b="xyz $(rand(1:10^5))",), tbl)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -487,12 +490,13 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 # ╠═f9695bbe-b243-4def-8689-3dac78177f02
 # ╠═ef2cb01b-cf38-47ab-b068-58bac0f454a2
 # ╠═91ce2d07-f209-46c0-aa90-d805318336e7
-# ╠═8a5ed8c1-2bd0-41bb-9efe-26d97ac54c13
-# ╠═9cd7e9fa-a383-43a6-8910-0e5f3571d35f
+# ╠═1dbb520f-5768-49f1-a03d-5fb43876ef9e
+# ╠═11722c8a-f086-4fc8-8840-c2d7a5bbd1d2
+# ╠═16824dd2-bbf9-4f08-ad0f-1ea20c7b41cf
 # ╠═909878e7-64af-4fb9-b227-05584393c826
 # ╠═eec2b023-bbde-4da9-924e-1fbfc57e91e1
 # ╠═b5388bdb-5f03-42aa-866d-60341241156a
-# ╠═5c288adf-6599-4cb6-aae1-8e41c7149c8e
-# ╠═31d1cdc5-c01c-4af4-a16c-a755d35a4e2b
+# ╠═c046f3a0-9941-4f83-8f5d-b0742a266f1b
+# ╠═bd8e67c9-50eb-445d-b001-1aa3b74e444e
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
