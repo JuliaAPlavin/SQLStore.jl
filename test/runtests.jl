@@ -53,18 +53,18 @@ using Test
         @test_throws ArgumentError only((;), tbl)
     end
 
-    update("a = 3" => "b = 'def'", tbl)
-    @test_throws SQLite.SQLiteException update("a = 5" => ("b = :xyz", (baz="XXX",)), tbl)
-    update("a = 5" => ("b = :xyz", (xyz="word",)), tbl)
-    update((a=4,) => (b="abc", d=DateTime(1900)), tbl)
-    update((a=6,) => (a=60,), tbl)
-    updateonly((a=7,) => (a=70,), tbl)
-    @test_throws Any updateonly((a=7,) => (a=70,), tbl)
-    update((a=-10,) => (a=100,), tbl)
-    @test_throws Any updateonly((a=-10,) => (a=100,), tbl)
-    @test_throws Any updateonly("a >= 3" => "b = b", tbl)
-    updatesome("a >= 3" => "b = b", tbl)
-    @test_throws Any updatesome("a < 0" => "b = b", tbl)
+    update!("a = 3" => "b = 'def'", tbl)
+    @test_throws SQLite.SQLiteException update!("a = 5" => ("b = :xyz", (baz="XXX",)), tbl)
+    update!("a = 5" => ("b = :xyz", (xyz="word",)), tbl)
+    update!((a=4,) => (b="abc", d=DateTime(1900)), tbl)
+    update!((a=6,) => (a=60,), tbl)
+    updateonly!((a=7,) => (a=70,), tbl)
+    @test_throws Any updateonly!((a=7,) => (a=70,), tbl)
+    update!((a=-10,) => (a=100,), tbl)
+    @test_throws Any updateonly!((a=-10,) => (a=100,), tbl)
+    @test_throws Any updateonly!("a >= 3" => "b = b", tbl)
+    updatesome!("a >= 3" => "b = b", tbl)
+    @test_throws Any updatesome!("a < 0" => "b = b", tbl)
     @test only((a=3,), tbl).b == "def"
     @test only((a=5,), tbl).b == "word"
     @test only((a=4,), tbl).b == "abc"
@@ -74,11 +74,11 @@ using Test
     @test only((a=70,), tbl).a == 70
 
     let r = only((c=Dict("key" => "value 2"),), tbl)
-        updateonly(r => (c=Dict(),), tbl)
+        updateonly!(r => (c=Dict(),), tbl)
         @test only((c=Dict(),), tbl).a == 2
     end
     let r = only((c=Dict(),), tbl, WithRowid())
-        updateonly((;r._rowid_) => (c=Dict("k" => "v"),), tbl)
+        updateonly!((;r._rowid_) => (c=Dict("k" => "v"),), tbl)
         @test only((a=2,), tbl).c == Dict(:k => "v")
     end
 

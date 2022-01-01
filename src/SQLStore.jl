@@ -6,7 +6,10 @@ import JSON3
 using Tables: rowtable
 using DataPipes
 
-export create_table, table, update, updateonly, updatesome, WithRowid, WithoutRowid, Rowid
+export
+    create_table, table,
+    update!, updateonly!, updatesome!,
+    WithRowid, WithoutRowid, Rowid
 
 
 function create_table(db, table_name::AbstractString, T::Type{<:NamedTuple}; constraint=nothing)
@@ -142,21 +145,21 @@ Base.only(query, tbl::Table, rowid::RowidSpec=WithoutRowid()) = filter(query, tb
 #     end
 # end
 
-function update((qwhere, qset)::Pair, tbl::Table; returning=nothing)
+function update!((qwhere, qset)::Pair, tbl::Table; returning=nothing)
     wstr, wparams = query_to_sql(tbl, qwhere)
     sstr, sparams = setquery_to_sql(tbl, qset)
     ret_str = isnothing(returning) ? "" : "returning $returning"
     qres = execute(tbl.db, "update $(tbl.name) set $(sstr) where $(wstr) $ret_str", merge_nosame(wparams, sparams))
 end
 
-function updateonly(queries, tbl::Table)
-    qres = update(queries, tbl; returning=ROWID_NAME) |> rowtable
+function updateonly!(queries, tbl::Table)
+    qres = update!(queries, tbl; returning=ROWID_NAME) |> rowtable
     isempty(qres) && throw("No rows were updated. WHERE query: $qwhere")
     length(qres) > 1 && throw("More than one row was updated: $(length(qres)). WHERE query: $qwhere")
 end
 
-function updatesome(queries, tbl::Table)
-    qres = update(queries, tbl; returning=ROWID_NAME) |> rowtable
+function updatesome!(queries, tbl::Table)
+    qres = update!(queries, tbl; returning=ROWID_NAME) |> rowtable
     isempty(qres) && throw("No rows were updated. WHERE query: $qwhere")
 end
 
