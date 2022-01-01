@@ -94,7 +94,7 @@ using Test
         push!(table(db, "tbl_rowid4"), (;))
         @test only((;), table(db, "tbl_rowid2")).x === missing
         @test only((;), table(db, "tbl_rowid3")).x == 1
-        @test only((;), table(db, "tbl_rowid4")).x == missing
+        @test only((;), table(db, "tbl_rowid4")).x === missing
     end
 end
 
