@@ -6,7 +6,7 @@ import JSON3
 using Tables: rowtable
 using DataPipes
 
-export create_table, table
+export create_table, table, update, updateonly, updatesome
 
 
 function create_table(db, table_name::AbstractString, T::Type{<:NamedTuple}; constraint=nothing)
@@ -121,6 +121,24 @@ function Iterators.filter(query, tbl::Table)
     end
 end
 
+function update((qwhere, qset)::Pair, tbl::Table; returning=nothing)
+    wstr, wparams = query_to_sql(tbl, qwhere)
+    sstr, sparams = setquery_to_sql(tbl, qset)
+    ret_str = isnothing(returning) ? "" : "returning $returning"
+    qres = execute(tbl.db, "update $(tbl.name) set $(sstr) where $(wstr) $ret_str", merge_nosame(wparams, sparams))
+end
+
+function updateonly(queries, tbl::Table)
+    qres = update(queries, tbl; returning="_rowid_") |> rowtable
+    isempty(qres) && throw("No rows were updated. WHERE query: $qwhere")
+    length(qres) > 1 && throw("More than one row was updated: $(length(qres)). WHERE query: $qwhere")
+end
+
+function updatesome(queries, tbl::Table)
+    qres = update(queries, tbl; returning="_rowid_") |> rowtable
+    isempty(qres) && throw("No rows were updated. WHERE query: $qwhere")
+end
+
 
 limit_to_sql(lim::Nothing) = ""
 limit_to_sql(lim::Int) = "limit $lim"
@@ -135,6 +153,16 @@ query_to_sql(tbl, q::NamedTuple) = @p begin
 end
 query_to_sql(tbl, q::Tuple{AbstractString, Vararg}) = first(q), Base.tail(q)
 query_to_sql(tbl, q::Tuple{AbstractString, NamedTuple}) = first(q), last(q)
+
+setquery_to_sql(tbl, q::AbstractString) = q, (;)
+setquery_to_sql(tbl, q::NamedTuple) = @p begin
+    @aside prefix = :_SET_
+    map(keys(q), values(q)) do k, v
+        "$k = :$prefix$k"
+    end
+    return join(↑, ", "), add_prefix_to_fieldnames(process_insert_row(q), Val(prefix))
+end
+setquery_to_sql(tbl, q::Tuple{AbstractString, NamedTuple}) = first(q), last(q)
 
 
 process_insert_row(row) = map(process_insert_field, row)
@@ -175,5 +203,21 @@ colcheck(name, ::Type{DateTime}) = "typeof($name) = 'text' and $name == strftime
 colcheck(name, ::Type{Dict}) = "json_valid($name)"
 colcheck(name, ::Type{Any}) = ""
 colcheck(name, ::Type{Union{T, Missing}}) where {T} = "($(colcheck(name, T))) or $name is null"
+
+
+@generated function add_prefix_to_fieldnames(nt::NamedTuple, ::Val{prefix}) where {prefix}
+    spec = map(fieldnames(nt)) do k
+        new_k = "$prefix$k" |> Symbol
+        :( $new_k = nt.$k )
+    end
+    quote
+        ($(spec...),)
+    end
+end
+
+function merge_nosame(a::NamedTuple{na}, b::NamedTuple{nb}) where {na, nb}
+    @assert isdisjoint(na, nb)
+    merge(a, b)
+end
 
 end
