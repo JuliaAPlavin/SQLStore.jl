@@ -59,12 +59,12 @@ using Test
     update!((a=4,) => (b="abc", d=DateTime(1900)), tbl)
     update!((a=6,) => (a=60,), tbl)
     updateonly!((a=7,) => (a=70,), tbl)
-    @test_throws Any updateonly!((a=7,) => (a=70,), tbl)
+    @test_throws ArgumentError updateonly!((a=7,) => (a=70,), tbl)
     update!((a=-10,) => (a=100,), tbl)
-    @test_throws Any updateonly!((a=-10,) => (a=100,), tbl)
-    @test_throws Any updateonly!("a >= 3" => "b = b", tbl)
+    @test_throws ArgumentError updateonly!((a=-10,) => (a=100,), tbl)
+    @test_throws ArgumentError updateonly!("a >= 3" => "b = b", tbl)
     updatesome!("a >= 3" => "b = b", tbl)
-    @test_throws Any updatesome!("a < 0" => "b = b", tbl)
+    @test_throws ArgumentError updatesome!("a < 0" => "b = b", tbl)
     @test only((a=3,), tbl).b == "def"
     @test only((a=5,), tbl).b == "word"
     @test only((a=4,), tbl).b == "abc"
@@ -87,8 +87,8 @@ using Test
     @test length(tbl) == 7
     deleteonly!((a=1,), tbl)
     @test length(tbl) == 6
-    @test_throws Any deleteonly!((a=1,), tbl)
-    @test_throws Any deletesome!((a=1,), tbl)
+    @test_throws ArgumentError deleteonly!((a=1,), tbl)
+    @test_throws ArgumentError deletesome!((a=1,), tbl)
     @test length(tbl) == 6
     deletesome!((a=2,), tbl)
     @test length(tbl) == 5

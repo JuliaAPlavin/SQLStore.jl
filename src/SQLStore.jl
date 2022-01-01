@@ -155,13 +155,13 @@ end
 
 function updateonly!(queries, tbl::Table)
     qres = update!(queries, tbl; returning=ROWID_NAME) |> rowtable
-    isempty(qres) && throw("No rows were updated. WHERE query: $qwhere")
-    length(qres) > 1 && throw("More than one row was updated: $(length(qres)). WHERE query: $qwhere")
+    isempty(qres) && throw(ArgumentError("No rows were updated. Query: $queries"))
+    length(qres) > 1 && throw(ArgumentError("More than one row was updated: $(length(qres)). Query: $queries"))
 end
 
 function updatesome!(queries, tbl::Table)
     qres = update!(queries, tbl; returning=ROWID_NAME) |> rowtable
-    isempty(qres) && throw("No rows were updated. WHERE query: $qwhere")
+    isempty(qres) && throw(ArgumentError("No rows were updated. Query: $queries"))
 end
 
 
@@ -173,13 +173,13 @@ end
 
 function deleteonly!(query, tbl::Table)
     qres = delete!(query, tbl; returning=ROWID_NAME) |> rowtable
-    isempty(qres) && throw("No rows were deleted. WHERE query: $query")
-    length(qres) > 1 && throw("More than one row was deleted: $(length(qres)). WHERE query: $query")
+    isempty(qres) && throw(ArgumentError("No rows were deleted. WHERE query: $query"))
+    length(qres) > 1 && throw(ArgumentError("More than one row was deleted: $(length(qres)). WHERE query: $query"))
 end
 
 function deletesome!(query, tbl::Table)
     qres = delete!(query, tbl; returning=ROWID_NAME) |> rowtable
-    isempty(qres) && throw("No rows were deleted. WHERE query: $query")
+    isempty(qres) && throw(ArgumentError("No rows were deleted. WHERE query: $query"))
 end
 
 
