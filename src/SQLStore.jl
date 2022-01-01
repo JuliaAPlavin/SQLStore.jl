@@ -207,6 +207,7 @@ setquery_to_sql(tbl, q::NamedTuple) = @p begin
 end
 setquery_to_sql(tbl, q::Tuple{AbstractString, NamedTuple}) = first(q), last(q)
 
+struct Rowid end
 
 process_insert_row(row) = map(process_insert_field, row)
 process_insert_field(x) = x
@@ -225,11 +226,11 @@ function process_select_row(schema, row::NamedTuple{names}) where {names}
         res
     end
 end
-process_select_field(_, x) = x
+process_select_field(T::Type, x) = x::T
+process_select_field(::Type{Rowid}, x) = x::Int
 process_select_field(::Type{DateTime}, x) = DateTime(x, dateformat"yyyy-mm-dd HH:MM:SS.sss")
 process_select_field(::Type{Dict}, x) = copy(JSON3.read(x))
 
-struct Rowid end
 colspec(name, ::Type{Rowid}) = "$name integer primary key"
 function colspec(name, T::Type)
     ct = coltype(T)
