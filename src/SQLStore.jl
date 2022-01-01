@@ -6,13 +6,13 @@ import JSON3
 using Tables: rowtable
 using DataPipes
 
-export create_table, table, update, updateonly, updatesome
+export create_table, table, update, updateonly, updatesome, WithRowid, WithoutRowid
 
 
 function create_table(db, table_name::AbstractString, T::Type{<:NamedTuple}; constraint=nothing)
     occursin(r"^\w+$", table_name) || throw("Table name cannot contain special symbols: got $table_name")
     field_specs = map(fieldnames(T), fieldtypes(T)) do name, type
-        (occursin(r"^\w+$", string(name)) && name != :_rowid_) || throw("Column name cannot contain special symbols: got $name")
+        (occursin(r"^\w+$", string(name)) && name != ROWID_NAME) || throw("Column name cannot contain special symbols: got $name")
         colspec(name, type)
     end
     stmt = """
@@ -97,26 +97,35 @@ function Base.any(query, tbl::Table)
     any(_ -> true, execute(tbl.db, "select * from $(tbl.name) where $(qstr) limit 1", params))
 end
 
-function Base.collect(tbl::Table)
-    map(execute(tbl.db, "select * from $(tbl.name)")) do r
+
+const ROWID_NAME = :_rowid_
+abstract type RowidSpec end
+struct WithRowid <: RowidSpec end
+struct WithoutRowid <: RowidSpec end
+rowid_select_sql(::WithoutRowid) = ""
+rowid_select_sql(::WithRowid) = "$ROWID_NAME as $ROWID_NAME,"
+
+
+function Base.collect(tbl::Table, rowid::RowidSpec=WithoutRowid())
+    map(execute(tbl.db, "select $(rowid_select_sql(rowid)) * from $(tbl.name)")) do r
         process_select_row(tbl.schema, r)
     end
 end
 
-function Base.filter(query, tbl::Table; limit=nothing)
+function Base.filter(query, tbl::Table, rowid::RowidSpec=WithoutRowid(); limit=nothing)
     qstr, params = query_to_sql(tbl, query)
-    qres = execute(tbl.db, "select * from $(tbl.name) where $(qstr) $(limit_to_sql(limit))", params)
+    qres = execute(tbl.db, "select $(rowid_select_sql(rowid)) * from $(tbl.name) where $(qstr) $(limit_to_sql(limit))", params)
     map(qres) do r
         process_select_row(tbl.schema, r)
     end
 end
 
-Base.first(query, tbl::Table) = filter(query, tbl; limit=1) |> only
-Base.only(query, tbl::Table) = filter(query, tbl; limit=2) |> only
+Base.first(query, tbl::Table, rowid::RowidSpec=WithoutRowid()) = filter(query, tbl, rowid; limit=1) |> only
+Base.only(query, tbl::Table, rowid::RowidSpec=WithoutRowid()) = filter(query, tbl, rowid; limit=2) |> only
 
-function Iterators.filter(query, tbl::Table)
+function Iterators.filter(query, tbl::Table, rowid::RowidSpec=WithoutRowid())
     qstr, params = query_to_sql(tbl, query)
-    qres = execute(tbl.db, "select * from $(tbl.name) where $(qstr)", params)
+    qres = execute(tbl.db, "select $(rowid_select_sql(rowid)) * from $(tbl.name) where $(qstr)", params)
     Iterators.map(qres) do r
         process_select_row(tbl.schema, r)
     end
@@ -130,13 +139,13 @@ function update((qwhere, qset)::Pair, tbl::Table; returning=nothing)
 end
 
 function updateonly(queries, tbl::Table)
-    qres = update(queries, tbl; returning="_rowid_") |> rowtable
+    qres = update(queries, tbl; returning=ROWID_NAME) |> rowtable
     isempty(qres) && throw("No rows were updated. WHERE query: $qwhere")
     length(qres) > 1 && throw("More than one row was updated: $(length(qres)). WHERE query: $qwhere")
 end
 
 function updatesome(queries, tbl::Table)
-    qres = update(queries, tbl; returning="_rowid_") |> rowtable
+    qres = update(queries, tbl; returning=ROWID_NAME) |> rowtable
     isempty(qres) && throw("No rows were updated. WHERE query: $qwhere")
 end
 
@@ -171,8 +180,16 @@ process_insert_field(x) = x
 process_insert_field(x::DateTime) = Dates.format(x, dateformat"yyyy-mm-dd HH:MM:SS.sss")
 process_insert_field(x::Dict) = JSON3.write(x)
 
-process_select_row(schema, row) = map(schema, NamedTuple(row)) do sch, val
-    process_select_field(sch.type, val)
+process_select_row(schema, row) = process_select_row(schema, NamedTuple(row))
+function process_select_row(schema, row::NamedTuple{names}) where {names}
+    res = map(schema, Base.structdiff(row, NamedTuple{(ROWID_NAME,)})) do sch, val
+        process_select_field(sch.type, val)
+    end
+    return if first(names) == ROWID_NAME
+        merge(NamedTuple{(ROWID_NAME,)}(row[ROWID_NAME]), res)
+    else
+        res
+    end
 end
 process_select_field(_, x) = x
 process_select_field(::Type{DateTime}, x) = DateTime(x, dateformat"yyyy-mm-dd HH:MM:SS.sss")

@@ -26,6 +26,7 @@ using Test
 
     let row = (a=3, b="xyz 3", c=Dict(:key => "value 3"), d=DateTime(2020, 1, 2, 3, 4, 3))
         @test collect(tbl)[3] == row
+        @test collect(tbl, WithRowid())[3] == (; _rowid_=3, row...)
 
         @test filter("a = 3", tbl) == [row]
         @test filter(("a = ?", 3), tbl) == [row]
@@ -71,6 +72,15 @@ using Test
     @test filter((a=6,), tbl) |> isempty
     @test only((a=60,), tbl).a == 60
     @test only((a=70,), tbl).a == 70
+
+    let r = only((c=Dict("key" => "value 2"),), tbl)
+        updateonly(r => (c=Dict(),), tbl)
+        @test only((c=Dict(),), tbl).a == 2
+    end
+    let r = only((c=Dict(),), tbl, WithRowid())
+        updateonly((;r._rowid_) => (c=Dict("k" => "v"),), tbl)
+        @test only((a=2,), tbl).c == Dict(:k => "v")
+    end
 end
 
 
