@@ -1,5 +1,5 @@
-limit_to_sql(lim::Nothing) = ""
-limit_to_sql(lim::Int) = "limit $lim"
+limit2sql(lim::Nothing) = ""
+limit2sql(lim::Int) = "limit $lim"
 
 
 const ROWID_NAME = :_rowid_
@@ -50,16 +50,16 @@ The filtering `query` corresponds to the SQL `WHERE` clause. It can be specified
 - Tuple `(String, NamedTuple)`: the `String` is passed to `WHERE` as-is, the `NamedTuple` contains SQL statement parameters that can be referred by name, `:param_name`.
 """
 
-query_to_sql(tbl, q::AbstractString) = q, (;)
-query_to_sql(tbl, q::NamedTuple{()}) = "1", (;)  # always-true filter
-query_to_sql(tbl, q::NamedTuple) = @p begin
+query2sql(tbl, q::AbstractString) = q, (;)
+query2sql(tbl, q::NamedTuple{()}) = "1", (;)  # always-true filter
+query2sql(tbl, q::NamedTuple) = @p begin
     map(keys(q), values(q)) do k, v
         "$k = :$k"
     end
     return join(↑, " and "), process_insert_row(q)
 end
-query_to_sql(tbl, q::Tuple{AbstractString, Vararg}) = first(q), Base.tail(q)
-query_to_sql(tbl, q::Tuple{AbstractString, NamedTuple}) = first(q), last(q)
+query2sql(tbl, q::Tuple{AbstractString, Vararg}) = first(q), Base.tail(q)
+query2sql(tbl, q::Tuple{AbstractString, NamedTuple}) = first(q), last(q)
 
 const SET_QUERY_DOC = """
 The `qset` part corresponds to the SQL `SET` clause in `UPDATE`. Can be specified in the following ways:
@@ -68,12 +68,12 @@ The `qset` part corresponds to the SQL `SET` clause in `UPDATE`. Can be specifie
 - Tuple `(String, NamedTuple)`: the `String` is passed to `SET` as-is, the `NamedTuple` contains SQL statement parameters that can be referred by name, `:param_name`.
 """
 
-setquery_to_sql(tbl, q::AbstractString) = q, (;)
-setquery_to_sql(tbl, q::NamedTuple) = @p begin
+setquery2sql(tbl, q::AbstractString) = q, (;)
+setquery2sql(tbl, q::NamedTuple) = @p begin
     @aside prefix = :_SET_
     map(keys(q), values(q)) do k, v
         "$k = :$prefix$k"
     end
     return join(↑, ", "), add_prefix_to_fieldnames(process_insert_row(q), Val(prefix))
 end
-setquery_to_sql(tbl, q::Tuple{AbstractString, NamedTuple}) = first(q), last(q)
+setquery2sql(tbl, q::Tuple{AbstractString, NamedTuple}) = first(q), last(q)

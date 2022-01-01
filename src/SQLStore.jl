@@ -152,12 +152,12 @@ function Base.length(tbl::Table)
 end
 
 function Base.count(query, tbl::Table)
-    qstr, params = query_to_sql(tbl, query)
+    qstr, params = query2sql(tbl, query)
     execute(tbl.db, "select count(*) from $(tbl.name) where $(qstr)", params) |> rowtable |> only |> only
 end
 
 function Base.any(query, tbl::Table)
-    qstr, params = query_to_sql(tbl, query)
+    qstr, params = query2sql(tbl, query)
     !isempty(execute(tbl.db, "select $ROWID_NAME from $(tbl.name) where $(qstr) limit 1", params) |> rowtable)
 end
 
@@ -181,8 +181,8 @@ $WHERE_QUERY_DOC
 $SELECT_QUERY_DOC
 """
 function Base.filter(query, tbl::Table, select=default_select(tbl); limit=nothing)
-    qstr, params = query_to_sql(tbl, query)
-    qres = execute(tbl.db, "select $(select2sql(tbl, select)) from $(tbl.name) where $(qstr) $(limit_to_sql(limit))", params)
+    qstr, params = query2sql(tbl, query)
+    qres = execute(tbl.db, "select $(select2sql(tbl, select)) from $(tbl.name) where $(qstr) $(limit2sql(limit))", params)
     map(qres) do r
         process_select_row(tbl.schema, r)
     end
@@ -215,7 +215,7 @@ function sample(query, tbl::Table, n::Int, select=default_select(tbl); replace=t
     if n > 1 && replace
         throw(ArgumentError("Sampling multiple elements with replacement is not supported"))
     end
-    qstr, params = query_to_sql(tbl, query)
+    qstr, params = query2sql(tbl, query)
     qres = execute(tbl.db, "select $(select2sql(tbl, select)) from $(tbl.name) where $(qstr) order by random() limit $n", params)
     res = map(qres) do r
         process_select_row(tbl.schema, r)
@@ -230,7 +230,7 @@ Base.rand(tbl::Table, select=default_select(tbl)) = rand((;), tbl, select)
 
 ## Query doesn't get closed - database may remain locked
 # function Iterators.filter(query, tbl::Table, select=default_select(tbl))
-#     qstr, params = query_to_sql(tbl, query)
+#     qstr, params = query2sql(tbl, query)
 #     qres = execute(tbl.db, "select $(rowid_select_sql(rowid)) * from $(tbl.name) where $(qstr)", params)
 #     Iterators.map(qres) do r
 #         process_select_row(tbl.schema, r)
@@ -246,8 +246,8 @@ $WHERE_QUERY_DOC
 $SET_QUERY_DOC
 """
 function update!((qwhere, qset)::Pair, tbl::Table; returning=nothing)
-    wstr, wparams = query_to_sql(tbl, qwhere)
-    sstr, sparams = setquery_to_sql(tbl, qset)
+    wstr, wparams = query2sql(tbl, qwhere)
+    sstr, sparams = setquery2sql(tbl, qset)
     ret_str = isnothing(returning) ? "" : "returning $returning"
     execute(tbl.db, "update $(tbl.name) set $(sstr) where $(wstr) $ret_str", merge_nosame(wparams, sparams))
 end
@@ -286,7 +286,7 @@ Delete rows that match `query` from the `tbl` Table.
 $WHERE_QUERY_DOC
 """
 function Base.delete!(query, tbl::Table; returning=nothing)
-    str, params = query_to_sql(tbl, query)
+    str, params = query2sql(tbl, query)
     ret_str = isnothing(returning) ? "" : "returning $returning"
     execute(tbl.db, "delete from $(tbl.name) where $(str) $ret_str", params)
 end
