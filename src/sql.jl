@@ -37,8 +37,8 @@ default_select(_) = All()
     1:fieldcount(TUP)
     map(:(select2sql(tbl, s.cols[$_])))
     mapmany([_, ','], __)
-    (↑)[1:end-1]
-    :( string($((↑)...)) )
+    __[1:end-1]
+    :( string($(__...)) )
 end
 select2sql(tbl, s::COL_NAME_TYPE) = s
 select2sql(tbl, s::Rowid) = "$ROWID_NAME as $ROWID_NAME"
@@ -62,7 +62,7 @@ query2sql(tbl, q::NamedTuple{()}) = "1", (;)  # always-true filter
     map(names) do k
         "$k = :$k"
     end
-    return :($(join(↑, " and ")), process_insert_row(q))
+    return :($(join(__, " and ")), process_insert_row(q))
 end
 query2sql(tbl, q::Tuple{AbstractString, Vararg}) = first(q), Base.tail(q)
 query2sql(tbl, q::Tuple{AbstractString, NamedTuple}) = first(q), last(q)
@@ -80,6 +80,6 @@ setquery2sql(tbl, q::NamedTuple) = @p begin
     map(keys(q), values(q)) do k, v
         "$k = :$prefix$k"
     end
-    return join(↑, ", "), add_prefix_to_fieldnames(process_insert_row(q), Val(prefix))
+    return join(__, ", "), add_prefix_to_fieldnames(process_insert_row(q), Val(prefix))
 end
 setquery2sql(tbl, q::Tuple{AbstractString, NamedTuple}) = first(q), last(q)

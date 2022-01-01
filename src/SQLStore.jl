@@ -95,7 +95,7 @@ function table(db, name::AbstractString)
     Table(; db, name, schema)
 end
 
-sql_table_def(db, name::AbstractString) = @p execute(db, "select * from sqlite_schema where name = :name", (;name)) |> rowtable |> only |> (↑).sql
+sql_table_def(db, name::AbstractString) = @p execute(db, "select * from sqlite_schema where name = :name", (;name)) |> rowtable |> only |> __.sql
 
 function parse_sql_to_schema(sql::AbstractString)
     lines = split(sql, "\n")
