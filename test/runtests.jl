@@ -7,6 +7,18 @@ using Test
     db = SQLite.DB()
     create_table(db, "tbl_pk", @NamedTuple{a::Int, b::String, c::Dict, d::DateTime}; constraints="PRIMARY KEY (a)")
 
+    @testset "create table" begin
+        tbl = create_table(db, "tbl_1", @NamedTuple{a::Int, b::String, c::Dict, d::DateTime}; constraints="PRIMARY KEY (a)")
+        @test tbl.name == "tbl_1"
+        @test schema(tbl).names == (:a, :b, :c, :d)
+        @test table(db, "tbl_1") == tbl
+        @test_throws ErrorException create_table(db, "tbl_1", @NamedTuple{a::Int, b::String, c::Dict, d::DateTime}; constraints="PRIMARY KEY (a)")
+        @test create_table(db, "tbl_1", @NamedTuple{a::Int, b::String, c::Dict, d::DateTime}; constraints="PRIMARY KEY (a)", keep_compatible=true) == tbl
+        @test_throws ErrorException create_table(db, "tbl_1", @NamedTuple{a::Int, b::String, c::Dict, d::DateTime}; keep_compatible=true)
+        @test_throws ErrorException create_table(db, "tbl_1", @NamedTuple{a::Int, b::String}; constraints="PRIMARY KEY (a)", keep_compatible=true)
+        @test_throws ErrorException create_table(db, "tbl_1", @NamedTuple{a::Union{Int, Missing}, b::String, c::Dict, d::DateTime}; constraints="PRIMARY KEY (a)", keep_compatible=true)
+    end
+
     @testset "populate table" begin
         tbl = table(db, "tbl_pk")
         @test length(tbl) == 0

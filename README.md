@@ -82,9 +82,9 @@ See function references for more details.
 
 
 
-`create_table(db, name, T::Type{NamedTuple}; [constraints])`
+`create_table(db, name, T::Type{NamedTuple}; [constraints], [keep_compatible=false])`
 
-Create a table with `name` in the database `db` with column specifications derived from the type `T`. Table constraints can be specified by the `constraints` argument.
+Create a table with `name` in the database `db` with column specifications derived from the type `T`. Table constraints can be specified by the `constraints` argument. Throws if a table with the same `name` already exists, unless `keep_compatible` is passed. `keep_compatible=true` keeps the existing table if it has a compatible schema.
 
 Supported types:
 
@@ -95,7 +95,7 @@ Supported types:
   * Any type can be combined with `Missing` as in `Union{Int, Missing}`. This allows `NULL`s in the corresponding column.
 
 
-<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/e87b97f862143de3f9a9e729785891cbf57c4083/src/SQLStore.jl#L33-L40' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/8624458ef0b7ecaca3a5480b573e749788294281/src/SQLStore.jl#L29-L37' class='documenter-source'>source</a><br>
 
 <a id='SQLStore.table' href='#SQLStore.table'>#</a>
 **`SQLStore.table`** &mdash; *Function*.
@@ -114,7 +114,7 @@ The returned object supports:
   * Other: `nrow`, `length`, `count`, `any`.
 
 
-<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/e87b97f862143de3f9a9e729785891cbf57c4083/src/SQLStore.jl#L65-L75' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/8624458ef0b7ecaca3a5480b573e749788294281/src/SQLStore.jl#L83-L93' class='documenter-source'>source</a><br>
 
 <a id='Base.Iterators.only' href='#Base.Iterators.only'>#</a>
 **`Base.Iterators.only`** &mdash; *Function*.
@@ -143,7 +143,7 @@ The optional `select` argument specifies fields to return, in one of the followi
   * `Not(...)`: all columns excluding those listed in `Not`.
 
 
-<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/e87b97f862143de3f9a9e729785891cbf57c4083/src/SQLStore.jl#L260-L268' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/8624458ef0b7ecaca3a5480b573e749788294281/src/SQLStore.jl#L228-L236' class='documenter-source'>source</a><br>
 
 <a id='Base.collect' href='#Base.collect'>#</a>
 **`Base.collect`** &mdash; *Function*.
@@ -165,7 +165,7 @@ The optional `select` argument specifies fields to return, in one of the followi
   * `Not(...)`: all columns excluding those listed in `Not`.
 
 
-<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/e87b97f862143de3f9a9e729785891cbf57c4083/src/SQLStore.jl#L221-L227' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/8624458ef0b7ecaca3a5480b573e749788294281/src/SQLStore.jl#L189-L195' class='documenter-source'>source</a><br>
 
 <a id='Base.delete!-Tuple{Any, SQLStore.Table}' href='#Base.delete!-Tuple{Any, SQLStore.Table}'>#</a>
 **`Base.delete!`** &mdash; *Method*.
@@ -184,7 +184,7 @@ The filtering `query` corresponds to the SQL `WHERE` clause. It can be specified
   * Tuple `(String, NamedTuple)`: the `String` is passed to `WHERE` as-is, the `NamedTuple` contains SQL statement parameters that can be referred by name, `:param_name`.
 
 
-<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/e87b97f862143de3f9a9e729785891cbf57c4083/src/SQLStore.jl#L338-L344' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/8624458ef0b7ecaca3a5480b573e749788294281/src/SQLStore.jl#L306-L312' class='documenter-source'>source</a><br>
 
 <a id='Base.filter' href='#Base.filter'>#</a>
 **`Base.filter`** &mdash; *Function*.
@@ -211,7 +211,7 @@ The optional `select` argument specifies fields to return, in one of the followi
   * `Not(...)`: all columns excluding those listed in `Not`.
 
 
-<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/e87b97f862143de3f9a9e729785891cbf57c4083/src/SQLStore.jl#L233-L239' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/8624458ef0b7ecaca3a5480b573e749788294281/src/SQLStore.jl#L201-L207' class='documenter-source'>source</a><br>
 
 <a id='Base.first' href='#Base.first'>#</a>
 **`Base.first`** &mdash; *Function*.
@@ -240,7 +240,7 @@ The optional `select` argument specifies fields to return, in one of the followi
   * `Not(...)`: all columns excluding those listed in `Not`.
 
 
-<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/e87b97f862143de3f9a9e729785891cbf57c4083/src/SQLStore.jl#L247-L255' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/8624458ef0b7ecaca3a5480b573e749788294281/src/SQLStore.jl#L215-L223' class='documenter-source'>source</a><br>
 
 <a id='Base.push!-Tuple{SQLStore.Table, NamedTuple}' href='#Base.push!-Tuple{SQLStore.Table, NamedTuple}'>#</a>
 **`Base.push!`** &mdash; *Method*.
@@ -252,7 +252,7 @@ The optional `select` argument specifies fields to return, in one of the followi
 Insert the `row` to `tbl`. Field values are converted to SQL types.
 
 
-<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/e87b97f862143de3f9a9e729785891cbf57c4083/src/SQLStore.jl#L122-L126' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/8624458ef0b7ecaca3a5480b573e749788294281/src/SQLStore.jl#L142-L146' class='documenter-source'>source</a><br>
 
 <a id='SQLStore.deleteonly!-Tuple{Any, SQLStore.Table}' href='#SQLStore.deleteonly!-Tuple{Any, SQLStore.Table}'>#</a>
 **`SQLStore.deleteonly!`** &mdash; *Method*.
@@ -271,7 +271,7 @@ The filtering `query` corresponds to the SQL `WHERE` clause. It can be specified
   * Tuple `(String, NamedTuple)`: the `String` is passed to `WHERE` as-is, the `NamedTuple` contains SQL statement parameters that can be referred by name, `:param_name`.
 
 
-<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/e87b97f862143de3f9a9e729785891cbf57c4083/src/SQLStore.jl#L350-L356' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/8624458ef0b7ecaca3a5480b573e749788294281/src/SQLStore.jl#L318-L324' class='documenter-source'>source</a><br>
 
 <a id='SQLStore.deletesome!-Tuple{Any, SQLStore.Table}' href='#SQLStore.deletesome!-Tuple{Any, SQLStore.Table}'>#</a>
 **`SQLStore.deletesome!`** &mdash; *Method*.
@@ -290,7 +290,7 @@ The filtering `query` corresponds to the SQL `WHERE` clause. It can be specified
   * Tuple `(String, NamedTuple)`: the `String` is passed to `WHERE` as-is, the `NamedTuple` contains SQL statement parameters that can be referred by name, `:param_name`.
 
 
-<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/e87b97f862143de3f9a9e729785891cbf57c4083/src/SQLStore.jl#L362-L368' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/8624458ef0b7ecaca3a5480b573e749788294281/src/SQLStore.jl#L330-L336' class='documenter-source'>source</a><br>
 
 <a id='SQLStore.update!-Tuple{Pair, SQLStore.Table}' href='#SQLStore.update!-Tuple{Pair, SQLStore.Table}'>#</a>
 **`SQLStore.update!`** &mdash; *Method*.
@@ -315,7 +315,7 @@ The `qset` part corresponds to the SQL `SET` clause in `UPDATE`. Can be specifie
   * Tuple `(String, NamedTuple)`: the `String` is passed to `SET` as-is, the `NamedTuple` contains SQL statement parameters that can be referred by name, `:param_name`.
 
 
-<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/e87b97f862143de3f9a9e729785891cbf57c4083/src/SQLStore.jl#L296-L304' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/8624458ef0b7ecaca3a5480b573e749788294281/src/SQLStore.jl#L264-L272' class='documenter-source'>source</a><br>
 
 <a id='SQLStore.updateonly!-Tuple{Any, SQLStore.Table}' href='#SQLStore.updateonly!-Tuple{Any, SQLStore.Table}'>#</a>
 **`SQLStore.updateonly!`** &mdash; *Method*.
@@ -340,7 +340,7 @@ The `qset` part corresponds to the SQL `SET` clause in `UPDATE`. Can be specifie
   * Tuple `(String, NamedTuple)`: the `String` is passed to `SET` as-is, the `NamedTuple` contains SQL statement parameters that can be referred by name, `:param_name`.
 
 
-<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/e87b97f862143de3f9a9e729785891cbf57c4083/src/SQLStore.jl#L311-L319' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/8624458ef0b7ecaca3a5480b573e749788294281/src/SQLStore.jl#L279-L287' class='documenter-source'>source</a><br>
 
 <a id='SQLStore.updatesome!-Tuple{Any, SQLStore.Table}' href='#SQLStore.updatesome!-Tuple{Any, SQLStore.Table}'>#</a>
 **`SQLStore.updatesome!`** &mdash; *Method*.
@@ -365,5 +365,5 @@ The `qset` part corresponds to the SQL `SET` clause in `UPDATE`. Can be specifie
   * Tuple `(String, NamedTuple)`: the `String` is passed to `SET` as-is, the `NamedTuple` contains SQL statement parameters that can be referred by name, `:param_name`.
 
 
-<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/e87b97f862143de3f9a9e729785891cbf57c4083/src/SQLStore.jl#L325-L333' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/aplavin/SQLStore.jl/blob/8624458ef0b7ecaca3a5480b573e749788294281/src/SQLStore.jl#L293-L301' class='documenter-source'>source</a><br>
 

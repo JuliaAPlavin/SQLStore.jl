@@ -26,14 +26,15 @@ include("sql.jl")
 include("conversion.jl")
 
 
-""" `create_table(db, name, T::Type{NamedTuple}; [constraints])`
+""" `create_table(db, name, T::Type{NamedTuple}; [constraints], [keep_compatible=false])`
 
 Create a table with `name` in the database `db` with column specifications derived from the type `T`.
 Table constraints can be specified by the `constraints` argument.
+Throws if a table with the same `name` already exists, unless `keep_compatible` is passed. `keep_compatible=true` keeps the existing table if it has a compatible schema.
 
 $SUPPORTED_TYPES_DOC
 """
-function create_table(db, table_name::AbstractString, T::Type{<:NamedTuple}; constraints=nothing)
+function create_table(db, table_name::AbstractString, T::Type{<:NamedTuple}; constraints=nothing, keep_compatible=false)
     occursin(r"^\w+$", table_name) || throw("Table name cannot contain special symbols: got $table_name")
     field_specs = map(fieldnames(T), fieldtypes(T)) do name, type
         (occursin(r"^\w+$", string(name)) && name != ROWID_NAME) || throw("Column name cannot contain special symbols: got $name")
@@ -46,7 +47,28 @@ function create_table(db, table_name::AbstractString, T::Type{<:NamedTuple}; con
         -- CONSTRAINTS
         $(isnothing(constraints) ? "" : "," * constraints)
     )"""
-    execute(db, stmt)
+
+    existing_sql_def = try
+        sql_table_def(db, table_name)
+    catch ex
+        ex isa ArgumentError || rethrow()
+        nothing
+    end
+    if isnothing(existing_sql_def)
+        # table doesn't exist: create it
+        execute(db, stmt)
+    else
+        is_compatible = stmt == existing_sql_def
+        if !keep_compatible
+            is_compatible ?
+                error("Table $table_name already exists in $db. Matches the requested schema, pass 'keep_compatible=true' to keep.") :
+                error("Table $table_name already exists in $db and doesn't matche the requested schema.")
+        elseif !is_compatible
+            error("Table $table_name already exists in $db and doesn't matche the requested schema.")
+        end
+        @assert keep_compatible && is_compatible
+    end
+    return table(db, table_name)
 end
 
 Base.@kwdef struct Table
@@ -69,9 +91,11 @@ The returned object supports:
 - Other: `nrow`, `length`, `count`, `any`.
 """
 function table(db, name::AbstractString)
-    sql_def = @p execute(db, "select * from sqlite_schema where name = :name", (;name)) |> rowtable |> only |> (↑).sql
-    Table(; db, name, schema=parse_sql_to_schema(sql_def))
+    schema = parse_sql_to_schema(sql_table_def(db, name))
+    Table(; db, name, schema)
 end
+
+sql_table_def(db, name::AbstractString) = @p execute(db, "select * from sqlite_schema where name = :name", (;name)) |> rowtable |> only |> (↑).sql
 
 function parse_sql_to_schema(sql::AbstractString)
     lines = split(sql, "\n")
