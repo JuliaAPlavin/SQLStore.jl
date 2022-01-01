@@ -15,6 +15,7 @@ using Test
     for i in 1:10
         push!(tbl, (a=i, b="xyz $i", c=Dict("key" => "value $i"), d=DateTime(2020, 1, 2, 3, 4, i)))
     end
+    @test_throws SQLite.SQLiteException push!(tbl, (a=1, b="", c=Dict(), d=now()))
     @test length(tbl) == 10
     @test length(collect(tbl)) == 10
 
@@ -49,7 +50,7 @@ using Test
         @test_throws ArgumentError only((;), tbl)
     end
 
-    @test_throws SQLite.SQLiteException push!(tbl, (a=1, b="", c=Dict(), d=now()))
+    
 end
 
 
