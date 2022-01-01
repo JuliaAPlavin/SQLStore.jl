@@ -6,7 +6,6 @@ using Test
 
 @testset begin
     db = SQLite.DB()
-    create_table(db, "tbl_nt", @NamedTuple{a::Int, b, c::String, d::Union{String, Missing}, x::DateTime, y::Float64})
     create_table(db, "tbl_pk", @NamedTuple{a::Int, b::String, c::Dict, d::DateTime}; constraint="PRIMARY KEY (a)")
 
     tbl = table(db, "tbl_pk")
@@ -110,6 +109,22 @@ using Test
 
     # ensure that no open sqlite statements are kept - otherwise dropping table would error
     execute(db, "drop table tbl_pk")
+
+    @testset begin
+        create_table(db, "tbl_nt", @NamedTuple{a::Union{Int, Missing}, b::Dict, c::Vector})
+        tbl = table(db, "tbl_nt")
+        # all are valid...
+        push!(tbl, (a=1, b=Dict(:a => 5), c=[1, 2, 3]))
+        push!(tbl, (a=missing, b=[1, 2, 3], c=[1, 2, 3]))
+        push!(tbl, (a=3, b=Dict(:a => 5), c=Dict(:a => 5)))
+        push!(tbl, (a=4, b=[1, 2, 3], c=Dict(:a => 5)))
+        @test length(tbl) == 4
+        @test isequal([r.a for r in collect(tbl)], [1, missing, 3, 4])
+        @test only((;a=1), tbl) == (a=1, b=Dict(:a => 5), c=[1, 2, 3])
+        @test_broken only((;a=missing), tbl)
+        @test isequal(only("a is null", tbl), (a=missing, b=[1, 2, 3], c=[1, 2, 3]))
+        @test only((;a=4), tbl) == (a=4, b=[1, 2, 3], c=Dict(:a => 5))
+    end
 end
 
 
