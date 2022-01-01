@@ -3,7 +3,8 @@ module SQLStore
 using DBInterface: execute
 using Dates
 import JSON3
-using Tables: rowtable
+import Tables
+using Tables: rowtable, schema, columnnames
 using DataPipes
 import DataAPI: All, ncol, nrow
 
@@ -12,8 +13,8 @@ export
     update!, updateonly!, updatesome!,
     deleteonly!, deletesome!,
     WithRowid, WithoutRowid, Rowid,
-    sample
-
+    sample,
+    schema, columnnames
 
 function create_table(db, table_name::AbstractString, T::Type{<:NamedTuple}; constraint=nothing)
     occursin(r"^\w+$", table_name) || throw("Table name cannot contain special symbols: got $table_name")
@@ -36,6 +37,9 @@ Base.@kwdef struct Table
     name::AbstractString
     schema
 end
+
+Tables.schema(tbl::Table) = Tables.Schema(keys(tbl.schema), @p tbl.schema |> map(_.type))
+Tables.columnnames(tbl::Table) = keys(tbl.schema)
 
 function table(db, name::AbstractString)
     sql_def = @p execute(db, "select * from sqlite_schema where name = :name", (;name)) |> rowtable |> only |> (↑).sql

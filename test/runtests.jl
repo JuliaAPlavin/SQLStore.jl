@@ -10,7 +10,6 @@ using Test
 
     @testset "populate table" begin
         tbl = table(db, "tbl_pk")
-        @show tbl
         @test length(tbl) == 0
         for i in 1:10
             push!(tbl, (a=i, b="xyz $i", c=Dict("key" => "value $i"), d=DateTime(2020, 1, 2, 3, 4, i)))
@@ -22,6 +21,11 @@ using Test
 
     @testset "summaries" begin
         tbl = table(db, "tbl_pk")
+        @test schema(tbl).names == (:a, :b, :c, :d)
+        @test schema(tbl).types == (Int, String, Dict, DateTime)
+        @test columnnames(tbl) == (:a, :b, :c, :d)
+        @test nrow(tbl) == 10
+        @test ncol(tbl) == 4
         @test count("a = 3", tbl) == 1
         @test count((;a=3), tbl) == 1
         @test count("a >= 3", tbl) == 8
