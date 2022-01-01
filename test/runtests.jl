@@ -189,3 +189,8 @@ end
 
 import CompatHelperLocal as CHL
 CHL.@check()
+
+using Documenter, DocumenterMarkdown
+makedocs(format=Markdown(), modules=[SQLStore], root="../docs")
+mv("../docs/build/README.md", "../README.md", force=true)
+rm("../docs/build", recursive=true)
