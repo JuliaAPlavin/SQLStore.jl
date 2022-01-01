@@ -33,7 +33,13 @@ const COL_NAMES_TYPE = Union{
     Vector{String},
 }
 default_select(_) = All()
-select2sql(tbl, s::Cols) = join((select2sql(tbl, ss) for ss in s.cols), ", ")
+@generated select2sql(tbl, s::Cols{TUP}) where {TUP} = @p begin
+    1:fieldcount(TUP)
+    map(:(select2sql(tbl, s.cols[$_])))
+    mapmany([_, ','], __)
+    (↑)[1:end-1]
+    :( string($((↑)...)) )
+end
 select2sql(tbl, s::COL_NAME_TYPE) = s
 select2sql(tbl, s::Rowid) = "$ROWID_NAME as $ROWID_NAME"
 select2sql(tbl, s::All) = (@assert isempty(s.cols); "*")
@@ -52,11 +58,11 @@ The filtering `query` corresponds to the SQL `WHERE` clause. It can be specified
 
 query2sql(tbl, q::AbstractString) = q, (;)
 query2sql(tbl, q::NamedTuple{()}) = "1", (;)  # always-true filter
-query2sql(tbl, q::NamedTuple) = @p begin
-    map(keys(q), values(q)) do k, v
+@generated query2sql(tbl, q::NamedTuple{names}) where {names} = @p begin
+    map(names) do k
         "$k = :$k"
     end
-    return join(↑, " and "), process_insert_row(q)
+    return :($(join(↑, " and ")), process_insert_row(q))
 end
 query2sql(tbl, q::Tuple{AbstractString, Vararg}) = first(q), Base.tail(q)
 query2sql(tbl, q::Tuple{AbstractString, NamedTuple}) = first(q), last(q)
