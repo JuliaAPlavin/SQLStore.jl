@@ -1,6 +1,6 @@
 module SQLStore
 
-using DBInterface: execute
+using DBInterface: execute, executemany
 using Dates
 import JSON3
 import Tables
@@ -103,6 +103,18 @@ function Base.push!(tbl::Table, row::NamedTuple)
             vals
         )
     end
+end
+
+function Base.append!(tbl::Table, rows)
+    fnames = keys(rows[1])
+    @assert all(r -> keys(r) == fnames, rows)
+    stmt = DBInterface.prepare(db, "INSERT INTO tmp VALUES(?, ?, ?)")
+
+    executemany(
+        tbl.db,
+        "insert into $(tbl.name) ($(join(fnames, ", "))) values ($(join(":" .* string.(fnames), ", ")))",
+        map(process_insert_row, rows),
+    )
 end
 
 ncol(tbl::Table) = length(tbl.schema)

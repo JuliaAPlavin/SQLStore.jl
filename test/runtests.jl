@@ -15,6 +15,12 @@ using Test
             push!(tbl, (a=i, b="xyz $i", c=Dict("key" => "value $i"), d=DateTime(2020, 1, 2, 3, 4, i)))
         end
         @test_throws SQLite.SQLiteException push!(tbl, (a=1, b="", c=Dict(), d=now()))
+        @test_broken length(tbl) == 5
+        # will work when SQLite.jl gets updated... XXX: change 10 to 5 above then!!!
+        @test_broken append!(tbl, [
+            (a=i, b="xyz $i", c=Dict("key" => "value $i"), d=DateTime(2020, 1, 2, 3, 4, i))
+            for i in 6:10
+        ])
         @test length(tbl) == 10
         @test length(collect(tbl)) == 10
     end
