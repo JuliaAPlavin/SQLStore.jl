@@ -212,6 +212,7 @@ process_insert_row(row) = map(process_insert_field, row)
 process_insert_field(x) = x
 process_insert_field(x::DateTime) = Dates.format(x, dateformat"yyyy-mm-dd HH:MM:SS.sss")
 process_insert_field(x::Dict) = JSON3.write(x)
+process_insert_field(x::Vector) = JSON3.write(x)
 
 process_select_row(schema, row) = process_select_row(schema, NamedTuple(row))
 function process_select_row(schema, row::NamedTuple{names}) where {names}
@@ -245,6 +246,7 @@ coltype(::Type{Float64}) = "real not null"
 coltype(::Type{String}) = "text not null"
 coltype(::Type{DateTime}) = "text not null"
 coltype(::Type{Dict}) = "text not null"
+coltype(::Type{Vector}) = "text not null"
 coltype(::Type{Any}) = ""
 coltype(::Type{Union{T, Missing}}) where {T} = replace(coltype(T), " not null" => "")
 
@@ -254,6 +256,7 @@ colcheck(name, ::Type{Float64}) = "typeof($name) = 'real'"
 colcheck(name, ::Type{String}) = "typeof($name) = 'text'"
 colcheck(name, ::Type{DateTime}) = "typeof($name) = 'text' and $name == strftime('%Y-%m-%d %H:%M:%f', $name)"
 colcheck(name, ::Type{Dict}) = "json_valid($name)"
+colcheck(name, ::Type{Vector}) = "json_valid($name)"
 colcheck(name, ::Type{Any}) = ""
 colcheck(name, ::Type{Union{T, Missing}}) where {T} = "($(colcheck(name, T))) or $name is null"
 
