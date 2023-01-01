@@ -40,7 +40,7 @@ end
 @testset "summaries" begin
     tbl = table(db, "tbl_pk")
     @test schema(tbl).names == (:a, :b, :c, :d)
-    @test schema(tbl).types == (Int, String, SQLStore.JSON, DateTime)
+    @test schema(tbl).types == (Int, String, Any, DateTime)
     @test columnnames(tbl) == (:a, :b, :c, :d)
     @test nrow(tbl) == 10
     @test ncol(tbl) == 4

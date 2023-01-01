@@ -54,7 +54,7 @@ Base.@kwdef struct TableNonexistent
     name::String
 end
 
-Tables.schema(tbl::Table) = Tables.Schema(keys(tbl.schema), @p tbl.schema |> map(_.type))
+Tables.schema(tbl::Table) = Tables.Schema(keys(tbl.schema), @p tbl.schema |> map(actual_julia_type(_.type)))
 Tables.columnnames(tbl::Table) = keys(tbl.schema)
 
 """ Obtain the `SQLStore.Table` object corresponding to the table `name` in database `db`.
