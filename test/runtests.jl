@@ -223,8 +223,10 @@ end
     end
 end
 
-@testset "dict" begin
+@testset "dict basic" begin
     dct = SQLDict{String, Int}(table(db, "dcttbl"))
+    @test keytype(dct) == String
+    @test valtype(dct) == Int
     @test length(dct) == 0
     @test isempty(dct)
     @test_throws KeyError dct["abc"]
@@ -270,6 +272,18 @@ end
 
     empty!(dct)
     @test isempty(dct)
+end
+
+@testset "dict complex types" begin
+    dct = SQLDict{SQLStore.Serialized, SQLStore.JSON}(table(db, "dct2"))
+    @test keytype(dct) == Any
+    @test valtype(dct) == Any
+    dct["abc"] = 123
+    dct[(a="abc", b=123)] = [1, 2, 3]
+    @test dct["abc"] == 123
+    @test dct[(a="abc", b=123)] == [1, 2, 3]
+    dct[(a="abc", b=123)] = Dict(:a => [4, 5, 6])
+    @test collect(dct) == ["abc" => 123, (a="abc", b=123) => Dict(:a => [4, 5, 6])]
 end
 
 
