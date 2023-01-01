@@ -176,6 +176,12 @@ function Base.length(tbl::Table)
     execute(tbl.db, "select count(*) from $(tbl.name)") |> rowtable |> only |> only
 end
 
+function Base.isempty(tbl::Table)
+    r = execute(tbl.db, "select exists (select 1 from $(tbl.name))") |> rowtable |> only |> only
+    @assert r ∈ (0, 1)
+    return r == 0
+end
+
 function Base.count(query, tbl::Table)
     qstr, params = query2sql(tbl, query)
     execute(tbl.db, "select count(*) from $(tbl.name) where $(qstr)", params) |> rowtable |> only |> only
