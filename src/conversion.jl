@@ -79,5 +79,8 @@ end
 process_select_field(T::Type, x) = x::T
 process_select_field(::Type{Rowid}, x) = x::Int
 process_select_field(::Type{DateTime}, x) = DateTime(x, dateformat"yyyy-mm-dd HH:MM:SS.sss")
-process_select_field(::Type{JSON}, x) = copy(JSON3.read(x))
+process_select_field(::Type{JSON}, x) = _json_materialize(JSON3.read(x))
 process_select_field(::Type{Serialized}, x) = Serialization.deserialize(IOBuffer(x))
+
+_json_materialize(x::String) = x
+_json_materialize(x) = copy(x)
