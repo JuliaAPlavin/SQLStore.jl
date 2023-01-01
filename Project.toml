@@ -1,7 +1,7 @@
 name = "SQLStore"
 uuid = "fadf0b4e-86bc-4bbb-a4ee-5c756d629598"
 authors = ["Alexander Plavin <alexander@plav.in>"]
-version = "0.1.12"
+version = "0.1.13"
 
 [deps]
 DBInterface = "a10d1c49-ce27-4219-8d33-6db1a4562965"
