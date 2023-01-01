@@ -1,12 +1,12 @@
-const stmt_cache = [
-    Dict{Tuple{SQLite.DB, String}, SQLite.Stmt}()
-    for _ in 1:Threads.nthreads()
-]
+const stmt_cache = Dict{Tuple{SQLite.DB, String}, SQLite.Stmt}()
+const _lock = ReentrantLock()
 function execute(db, query, args...)
-    stmt = get!(stmt_cache[Threads.threadid()], (db, query)) do
-        DBInterface.prepare(db, query)
+    lock(_lock) do
+        stmt = get!(stmt_cache, (db, query)) do
+            DBInterface.prepare(db, query)
+        end
+        DBInterface.execute(stmt, args...)
     end
-    DBInterface.execute(stmt, args...)
 end
 
 @generated function add_prefix_to_fieldnames(nt::NamedTuple, ::Val{prefix}) where {prefix}
