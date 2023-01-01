@@ -10,6 +10,7 @@ using InvertedIndices: Not
 import DataAPI: All, Cols, ncol, nrow
 import StatsBase: sample
 import SQLite
+using Serialization
 
 export
     SQLite,
@@ -20,7 +21,7 @@ export
     sample,
     Not, All, Cols, ncol, nrow,
     schema, columnnames,
-    SQLDict
+    SQLDict, SQLDictON
 
 
 include("utils.jl")

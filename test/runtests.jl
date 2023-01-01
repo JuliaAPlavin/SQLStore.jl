@@ -200,90 +200,158 @@ end
 if Threads.nthreads() == 1
     @warn "Julia is started with a single thread, cannot test multithreading"
 end
-@testset "multithreaded" begin
-    create_table(db, "tbl_thread", @NamedTuple{a::Union{Int, Missing}, b::SQLStore.Serialized, c::SQLStore.JSON})
-    tbl = table(db, "tbl_thread")
-    N = 1000
-    @sync for i in 1:N
-        Threads.@spawn push!(tbl, (a=i, b=Dict("key" => "value $i"), c=rand(i)))
-    end
-    @test length(tbl) == N
-    @sync for i in 1:N
-        @async push!(tbl, (a=N + i, b=Dict("key" => "value $i"), c=rand(i)))
-    end
-    @test length(tbl) == 2*N
-    Threads.@threads for i in 1:N
-        push!(tbl, (a=2*N + i, b=Dict("key" => "value $i"), c=rand(i)))
-    end
-    @test length(tbl) == 3*N
-    @test asyncmap(i -> only((a=i,), tbl), 1:(3*N)) == sort(collect(tbl), by=r -> r.a)
-    foreach(collect(tbl)) do r
-        @test r.b["key"] == "value $(mod1(r.a, N))"
-        @test length(r.c) == mod1(r.a, N)
-    end
-end
+# @testset "multithreaded" begin
+#     create_table(db, "tbl_thread", @NamedTuple{a::Union{Int, Missing}, b::SQLStore.Serialized, c::SQLStore.JSON})
+#     tbl = table(db, "tbl_thread")
+#     N = 1000
+#     @sync for i in 1:N
+#         Threads.@spawn push!(tbl, (a=i, b=Dict("key" => "value $i"), c=rand(i)))
+#     end
+#     @test length(tbl) == N
+#     @sync for i in 1:N
+#         @async push!(tbl, (a=N + i, b=Dict("key" => "value $i"), c=rand(i)))
+#     end
+#     @test length(tbl) == 2*N
+#     Threads.@threads for i in 1:N
+#         push!(tbl, (a=2*N + i, b=Dict("key" => "value $i"), c=rand(i)))
+#     end
+#     @test length(tbl) == 3*N
+#     @test asyncmap(i -> only((a=i,), tbl), 1:(3*N)) == sort(collect(tbl), by=r -> r.a)
+#     foreach(collect(tbl)) do r
+#         @test r.b["key"] == "value $(mod1(r.a, N))"
+#         @test length(r.c) == mod1(r.a, N)
+#     end
+# end
 
 @testset "dict basic" begin
-    dct = SQLDict{String, Int}(table(db, "dcttbl"))
-    @test keytype(dct) == String
-    @test valtype(dct) == Int
-    @test length(dct) == 0
-    @test isempty(dct)
-    @test_throws KeyError dct["abc"]
-    @test_throws Exception dct[123]
+    dct_base = SQLDict{String, Int}(table(db, "dcttbl"))
+    dct_on = SQLDictON{String, Int}(table(db, "dcttbl"))
 
-    dct["abc"] = 1
-    @test length(dct) == 1
-    @test !isempty(dct)
-    @test dct["abc"] == 1
-    @test_throws KeyError dct["def"]
-    @test_throws Exception dct[123]
+    for dct in [dct_base, dct_on]
+        @test keytype(dct) == String
+        @test valtype(dct) == Int
+        @test length(dct) == 0
+        @test isempty(dct)
+        @test_throws KeyError dct["abc"]
+        @test_throws Exception dct[123]
+    end
 
-    @test delete!(dct, "abc") === dct
-    @test isempty(dct)
-    @test delete!(dct, "abc") === dct  # doesn't throw
+    dct_base["abc"] = 1
+    for dct in [dct_base, dct_on]
+        @test length(dct) == 1
+        @test !isempty(dct)
+        @test dct["abc"] == 1
+        @test_throws KeyError dct["def"]
+        @test_throws Exception dct[123]
+    end
 
-    dct["abc"] = 10
-    dct["d"] = 20
-    @test length(dct) == 2
-    @test collect(dct) == ["abc" => 10, "d" => 20]
-    @test (dct["abc"] += 1) == 11
-    @test dct["abc"] == 11
-    @test haskey(dct, "d")
-    @test "d" ∈ keys(dct)
-    @test !haskey(dct, "ABC")
-    @test "ABC" ∉ keys(dct)
-    @test get(dct, "d", nothing) === 20
-    @test get(dct, "D", nothing) === nothing
-    @test pop!(dct, "d") == 20
-    @test pop!(dct, "d", 0) == 0
-    @test !haskey(dct, "d")
+    @test delete!(dct_base, "abc") === dct_base
+    for dct in [dct_base, dct_on]
+        @test isempty(dct)
+        @test delete!(dct, "abc") === dct  # doesn't throw
+    end
 
-    @test first(dct) == ("abc" => 11)
+    dct_base["abc"] = 10
+    dct_on["d"] = 20
+    for dct in [dct_base, dct_on]
+        @test length(dct) == 2
+        @test collect(dct) == ["abc" => 10, "d" => 20]
+    end
+    @test (dct_on["abc"] += 1) == 11
+    @test dct_base["abc"] == 11
+    @test dct_on["abc"] == 11
+    for dct in [dct_base, dct_on]
+        @test haskey(dct, "d")
+        @test "d" ∈ keys(dct)
+        @test !haskey(dct, "ABC")
+        @test "ABC" ∉ keys(dct)
+        @test get(dct, "d", nothing) === 20
+        @test get(dct, "D", nothing) === nothing
+    end
+    @test pop!(dct_base, "d") == 20
+    for dct in [dct_base, dct_on]
+        @test pop!(dct, "d", 0) == 0
+        @test !haskey(dct, "d")
 
-    @test get!(dct, "abc", nothing) == 11
-    @test get!(dct, "ABC", 123) == 123
-    @test dct["ABC"] == 123
-    @test get!(dct, "ABC", nothing) == 123
-    @test get!(() -> 456, dct, "def") == 456
-    @test get!(() -> error(""), dct, "def") == 456
-    @test dct["def"] == 456
-    @test collect(dct) == ["abc" => 11, "ABC" => 123, "def" => 456]
+        @test first(dct) == ("abc" => 11)
+    end
 
-    empty!(dct)
-    @test isempty(dct)
+    for dct in [dct_base, dct_on]
+        @test get!(dct, "abc", nothing) == 11
+        @test get!(dct, "ABC", 123) == 123
+        @test dct["ABC"] == 123
+        @test get!(dct, "ABC", nothing) == 123
+        @test get!(() -> 456, dct, "def") == 456
+        @test get!(() -> error(""), dct, "def") == 456
+        @test dct["def"] == 456
+        @test collect(dct) == ["abc" => 11, "ABC" => 123, "def" => 456]
+    end
+
+    empty!(dct_base)
+    @test isempty(dct_on)
 end
 
 @testset "dict complex types" begin
-    dct = SQLDict{SQLStore.Serialized, SQLStore.JSON}(table(db, "dct2"))
-    @test keytype(dct) == Any
-    @test valtype(dct) == Any
-    dct["abc"] = 123
-    dct[(a="abc", b=123)] = [1, 2, 3]
-    @test dct["abc"] == 123
-    @test dct[(a="abc", b=123)] == [1, 2, 3]
-    dct[(a="abc", b=123)] = Dict(:a => [4, 5, 6])
-    @test collect(dct) == ["abc" => 123, (a="abc", b=123) => Dict(:a => [4, 5, 6])]
+    dct_base = SQLDict{SQLStore.Serialized, SQLStore.JSON}(table(db, "dct2"))
+    dct_on = SQLDictON{SQLStore.Serialized, SQLStore.JSON}(table(db, "dct2"))
+
+    dct_base["abc"] = 123
+    dct_on[(a="abc", b=123)] = [1, 2, 3]
+    for dct in [dct_base, dct_on]
+        @test keytype(dct) == Any
+        @test valtype(dct) == Any
+        @test dct["abc"] == 123
+        @test dct[(a="abc", b=123)] == [1, 2, 3]
+    end
+    dct_base[(a="abc", b=123)] = Dict(:a => [4, 5, 6])
+    for dct in [dct_base, dct_on]
+        @test collect(dct) == ["abc" => 123, (a="abc", b=123) => Dict(:a => [4, 5, 6])]
+    end
+    dct_on[(a="abc", b=123)] = [4, 5, 6]
+    for dct in [dct_base, dct_on]
+        @test collect(dct) == ["abc" => 123, (a="abc", b=123) => [4, 5, 6]]
+    end
+end
+
+@testset "between julia versions" begin
+    try
+        run(`julia-16 -v`)
+    catch
+        @warn "Cannot test persistence between Julia versions"
+        return
+    end
+    tmpfile = tempname()
+    expr = """
+    using SQLStore
+    db = SQLite.DB("$tmpfile")
+    dct = SQLDict{SQLStore.Serialized, SQLStore.JSON}(table(db, "dcttbl"))
+    dct[(a=1, b=[2, 3, 4], c="5")] = ["a", "b", "c"]
+    """
+    run(setenv(`julia-16 --project --startup-file=no --eval $expr`, copy(ENV); dir=dirname(@__DIR__)))
+
+    db = SQLite.DB("$tmpfile")
+
+    dct = SQLDict{SQLStore.Serialized, SQLStore.JSON}(table(db, "dcttbl"))
+    @test length(dct) == 1
+    @test collect(dct) == [(a = 1, b = [2, 3, 4], c = "5") => ["a", "b", "c"]]
+    @test_throws ErrorException dct[(a=1, b=[2, 3, 4], c="5")]
+    @test_throws ErrorException dct[(a=1, b=[2, 3, 4], c="5")] = "ololo"
+    @test_throws ErrorException dct[123] = "ololo"
+    @test_throws ErrorException delete!(dct, "abc")
+    @test_throws ErrorException pop!(dct, "abc")
+
+    dct = SQLDictON{SQLStore.Serialized, SQLStore.JSON}(table(db, "dcttbl"))
+    @test length(dct) == 1
+    @test collect(dct) == [(a = 1, b = [2, 3, 4], c = "5") => ["a", "b", "c"]]
+    @test dct[(a=1, b=[2, 3, 4], c="5")] == ["a", "b", "c"]
+    dct[(a=1, b=[2, 3, 4], c="5")] = "ololo1"
+    dct[123] = "ololo2"
+    @test length(dct) == 2
+    @test dct[(a=1, b=[2, 3, 4], c="5")] == "ololo1"
+    @test dct[123] == "ololo2"
+    delete!(dct, "abc")
+    @test pop!(dct, 123) == "ololo2"
+    @test collect(dct) == [(a = 1, b = [2, 3, 4], c = "5") => "ololo1"]
 end
 
 

@@ -47,7 +47,10 @@ Base.@kwdef struct Table
     db
     name::String
     schema
+    reserialize_mismatches::Vector{Symbol}
 end
+
+Base.:(==)(a::Table, b::Table) = a.db == b.db && a.name == b.name && a.schema == b.schema && a.reserialize_mismatches == b.reserialize_mismatches
 
 Base.@kwdef struct TableNonexistent
     db
@@ -70,7 +73,18 @@ The returned object supports:
 function table(db, name::AbstractString)
     if sql_has_table(db, name)
         schema = parse_sql_to_schema(sql_table_def(db, name))
-        Table(; db, name, schema)
+        
+        reserialize_mismatches = Symbol[]
+        qres = execute(db, "select * from $(name) limit 5")
+        map(qres) do rawrow
+            rawntrow = NamedTuple(rawrow)
+            valrow = process_select_row(schema, rawrow)
+            rerawrow = process_insert_row(schema, valrow)::NamedTuple
+            union!(reserialize_mismatches, map(!isequal, rawntrow, rerawrow) |> findall)
+        end
+        isempty(reserialize_mismatches) || @warn "Some columns change after re-serializing" db name reserialize_mismatches
+
+        Table(; db, name, schema, reserialize_mismatches)
     else
         TableNonexistent(; db, name)
     end

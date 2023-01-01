@@ -62,7 +62,12 @@ query2sql(tbl, q::NamedTuple{()}) = "1", (;)  # always-true filter
     map(names, TTypes.parameters) do k, T
         T === Missing ? "$k is null" : "$k = :$k"
     end
-    return :($(join(__, " and ")), process_insert_row(tbl.schema, q))
+    join(__, " and ")
+    return quote
+        badnames = intersect($names, tbl.reserialize_mismatches)
+        isempty(badnames) || error("Trying to query by columns that don't match their re-serialization: $(join(tbl.name .* "." .* string.(badnames), ", "))")
+        $__, process_insert_row(tbl.schema, q)
+    end
 end
 query2sql(tbl, q::Tuple{AbstractString, Vararg}) = first(q), Base.tail(q)
 query2sql(tbl, q::Tuple{AbstractString, NamedTuple}) = first(q), last(q)

@@ -1,23 +1,33 @@
-struct SQLDict{K, V, TKC, TVC} <: AbstractDict{K, V}
+abstract type SQLAbstractDict{K, V} <: AbstractDict{K, V} end
+
+struct SQLDict{K, V, TKC, TVC} <: SQLAbstractDict{K, V}
     tbl::Table
     columns_key::TKC
     columns_value::TVC
 end
 
-# SQLDict(tbl::Table, columns_key, columns_value) = SQLDict{Any, Any, typeof(columns_key), typeof(columns_value)}(tbl, columns_key, columns_value)
-
-function SQLDict{K, V}(tbl::TableNonexistent) where {K, V}
-    tbl = create_table(tbl.db, tbl.name, @NamedTuple{k::K, v::V}; constraints="PRIMARY KEY (k)")
-    SQLDict{actual_julia_type(K), actual_julia_type(V), Symbol, Symbol}(tbl, :k, :v)
+struct SQLDictON{K, V, TKC, TVC} <: SQLAbstractDict{K, V}
+    tbl::Table
+    columns_key::TKC
+    columns_value::TVC
 end
 
-function SQLDict{K, V}(tbl::Table) where {K, V}
-    # ensure compatible:
-    create_table(tbl.db, tbl.name, @NamedTuple{k::K, v::V}; constraints="PRIMARY KEY (k)", keep_compatible=true)
-    SQLDict{actual_julia_type(K), actual_julia_type(V), Symbol, Symbol}(tbl, :k, :v)
+
+for T in [SQLDict, SQLDictON]
+    @eval function $T{K, V}(tbl::TableNonexistent) where {K, V}
+        tbl = create_table(tbl.db, tbl.name, @NamedTuple{k::K, v::V}; constraints="PRIMARY KEY (k)")
+        $T{actual_julia_type(K), actual_julia_type(V), Symbol, Symbol}(tbl, :k, :v)
+    end
+
+    @eval function $T{K, V}(tbl::Table) where {K, V}
+        # ensure compatible:
+        create_table(tbl.db, tbl.name, @NamedTuple{k::K, v::V}; constraints="PRIMARY KEY (k)", keep_compatible=true)
+        $T{actual_julia_type(K), actual_julia_type(V), Symbol, Symbol}(tbl, :k, :v)
+    end
 end
 
-function Base.get(dct::SQLDict, key, default)
+
+function Base.get(dct::SQLDict{K}, key::K, default) where {K}
     rows = filter(wrap_value(dct.columns_key, key), dct.tbl, Cols(dct.columns_value); limit=2)
     if length(rows) == 0
         return default
@@ -29,6 +39,9 @@ function Base.get(dct::SQLDict, key, default)
 end
 
 function Base.setindex!(dct::SQLDict{K, V}, val::V, key::K) where {K, V}
+    badnames = intersect(union_cols(dct.columns_key), dct.tbl.reserialize_mismatches)
+    isempty(badnames) || error("Trying to query by columns that don't match their re-serialization: $(join(dct.tbl.name .* "." .* string.(badnames), ", "))")
+
     rowvals = process_insert_row(dct.tbl.schema, merge(wrap_value(dct.columns_key, key), wrap_value(dct.columns_value, val)))
     allcols = union_cols(dct.columns_key, dct.columns_value)
     execute(
@@ -48,17 +61,6 @@ function Base.delete!(dct::SQLDict{K, V}, key::K) where {K, V}
     return dct
 end
 
-function Base.pop!(dct::SQLDict{K, V}, key::K) where {K, V}
-    rows = delete!(wrap_value(dct.columns_key, key), dct.tbl; returning=dct.columns_value) |> rowtable
-    if length(rows) == 0
-        throw(KeyError(key))
-    elseif length(rows) == 1
-        return unwrap_value(dct.columns_value, only(rows))
-    elseif length(rows) >= 2
-        error("Unexpected: multiple rows match key $(dct.columns_key) = $key")
-    end
-end
-
 function Base.pop!(dct::SQLDict{K, V}, key::K, default) where {K, V}
     rows = delete!(wrap_value(dct.columns_key, key), dct.tbl; returning=dct.columns_value) |> rowtable
     if length(rows) == 0
@@ -70,18 +72,75 @@ function Base.pop!(dct::SQLDict{K, V}, key::K, default) where {K, V}
     end
 end
 
-function Base.empty!(dct::SQLDict)
+
+
+function Base.get(dct::SQLDictON{K}, key::K, default) where {K}
+    keyrows = @p collect(dct.tbl, Cols(Rowid(), dct.columns_key)) |> filter(isequal(key, _[dct.columns_key]))
+    if length(keyrows) == 0
+        return default
+    elseif length(keyrows) == 1
+        row = only((;only(keyrows)._rowid_), dct.tbl, Cols(dct.columns_value))
+        return unwrap_value(dct.columns_value, row)
+    elseif length(keyrows) >= 2
+        error("Unexpected: multiple rows match key $(dct.columns_key) = $key")
+    end
+end
+
+function Base.setindex!(dct::SQLDictON{K, V}, val::V, key::K) where {K, V}
+    keyrows = @p collect(dct.tbl, Cols(Rowid(), dct.columns_key)) |> filter(isequal(key, _[dct.columns_key]))
+    if length(keyrows) == 0
+        push!(dct.tbl, merge(wrap_value(dct.columns_key, key), wrap_value(dct.columns_value, val)))
+    elseif length(keyrows) == 1
+        updateonly!((;only(keyrows)._rowid_) => wrap_value(dct.columns_value, val), dct.tbl)
+    elseif length(keyrows) >= 2
+        error("Unexpected: multiple rows match key $(dct.columns_key) = $key")
+    end
+    return dct
+end
+
+function Base.delete!(dct::SQLDictON{K, V}, key::K) where {K, V}
+    keyrows = @p collect(dct.tbl, Cols(Rowid(), dct.columns_key)) |> filter(isequal(key, _[dct.columns_key]))
+    if length(keyrows) == 0
+    elseif length(keyrows) == 1
+        deleteonly!((;only(keyrows)._rowid_), dct.tbl)
+    elseif length(keyrows) >= 2
+        error("Unexpected: multiple rows match key $(dct.columns_key) = $key")
+    end
+    return dct
+end
+
+function Base.pop!(dct::SQLDictON{K, V}, key::K, default) where {K, V}
+    keyrows = @p collect(dct.tbl, Cols(Rowid(), dct.columns_key)) |> filter(isequal(key, _[dct.columns_key]))
+    if length(keyrows) == 0
+        return default
+    elseif length(keyrows) == 1
+        row = only((;only(keyrows)._rowid_), dct.tbl, Cols(dct.columns_value))
+        deleteonly!((;only(keyrows)._rowid_), dct.tbl)
+        return unwrap_value(dct.columns_value, row)
+    elseif length(keyrows) >= 2
+        error("Unexpected: multiple rows match key $(dct.columns_key) = $key")
+    end
+end
+
+
+function Base.pop!(dct::SQLAbstractDict, key)
+    sentinel = :fjdkslfdslkfsf
+    res = pop!(dct, key, sentinel)
+    res === sentinel ? throw(KeyError(key)) : res
+end
+
+function Base.empty!(dct::SQLAbstractDict)
     delete!((;), dct.tbl)
     dct
 end
 
-function Base.iterate(dct::SQLDict, (pairs_vec, state))
+function Base.iterate(dct::SQLAbstractDict, (pairs_vec, state))
     x = iterate(pairs_vec, state)
     isnothing(x) && return x
     (res, state) = x
     return (res, (pairs_vec, state))
 end
-function Base.iterate(dct::SQLDict)
+function Base.iterate(dct::SQLAbstractDict)
     pairs_vec =
         @p collect(dct.tbl, Cols(union_cols(dct.columns_key, dct.columns_value)...)) |>
         map(_[dct.columns_key] => _[dct.columns_value])
@@ -91,9 +150,10 @@ function Base.iterate(dct::SQLDict)
     return (res, (pairs_vec, state))
 end
 
-Base.length(dct::SQLDict) = length(dct.tbl)
-Base.isempty(dct::SQLDict) = isempty(dct.tbl)
+Base.length(dct::SQLAbstractDict) = length(dct.tbl)
+Base.isempty(dct::SQLAbstractDict) = isempty(dct.tbl)
 
 wrap_value(keycol::Symbol, key) = NamedTuple{(keycol,)}((key,))
 unwrap_value(valcol::Symbol, val::NamedTuple) = (@assert keys(val) == (valcol,); only(val))
+union_cols(a::Symbol) = (a,)
 union_cols(a::Symbol, b::Symbol) = (a, b)
