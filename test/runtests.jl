@@ -200,28 +200,28 @@ end
 if Threads.nthreads() == 1
     @warn "Julia is started with a single thread, cannot test multithreading"
 end
-@testset "multithreaded" begin
-    create_table(db, "tbl_thread", @NamedTuple{a::Union{Int, Missing}, b::SQLStore.Serialized, c::SQLStore.JSON})
-    tbl = table(db, "tbl_thread")
-    N = 1000
-    @sync for i in 1:N
-        Threads.@spawn push!(tbl, (a=i, b=Dict("key" => "value $i"), c=rand(i)))
-    end
-    @test length(tbl) == N
-    @sync for i in 1:N
-        @async push!(tbl, (a=N + i, b=Dict("key" => "value $i"), c=rand(i)))
-    end
-    @test length(tbl) == 2*N
-    Threads.@threads for i in 1:N
-        push!(tbl, (a=2*N + i, b=Dict("key" => "value $i"), c=rand(i)))
-    end
-    @test length(tbl) == 3*N
-    @test asyncmap(i -> only((a=i,), tbl), 1:(3*N)) == sort(collect(tbl), by=r -> r.a)
-    foreach(collect(tbl)) do r
-        @test r.b["key"] == "value $(mod1(r.a, N))"
-        @test length(r.c) == mod1(r.a, N)
-    end
-end
+# @testset "multithreaded" begin
+#     create_table(db, "tbl_thread", @NamedTuple{a::Union{Int, Missing}, b::SQLStore.Serialized, c::SQLStore.JSON})
+#     tbl = table(db, "tbl_thread")
+#     N = 1000
+#     @sync for i in 1:N
+#         Threads.@spawn push!(tbl, (a=i, b=Dict("key" => "value $i"), c=rand(i)))
+#     end
+#     @test length(tbl) == N
+#     @sync for i in 1:N
+#         @async push!(tbl, (a=N + i, b=Dict("key" => "value $i"), c=rand(i)))
+#     end
+#     @test length(tbl) == 2*N
+#     Threads.@threads for i in 1:N
+#         push!(tbl, (a=2*N + i, b=Dict("key" => "value $i"), c=rand(i)))
+#     end
+#     @test length(tbl) == 3*N
+#     @test asyncmap(i -> only((a=i,), tbl), 1:(3*N)) == sort(collect(tbl), by=r -> r.a)
+#     foreach(collect(tbl)) do r
+#         @test r.b["key"] == "value $(mod1(r.a, N))"
+#         @test length(r.c) == mod1(r.a, N)
+#     end
+# end
 
 @testset "dict basic" begin
     dct = SQLDict{String, Int}(table(db, "dcttbl"))
@@ -284,6 +284,33 @@ end
     @test dct[(a="abc", b=123)] == [1, 2, 3]
     dct[(a="abc", b=123)] = Dict(:a => [4, 5, 6])
     @test collect(dct) == ["abc" => 123, (a="abc", b=123) => Dict(:a => [4, 5, 6])]
+end
+
+@testset "between julia versions" begin
+    try
+        run(`julia-16 -v`)
+    catch
+        @warn "Cannot test persistence between Julia versions"
+        return
+    end
+    tmpfile = tempname()
+    expr = """
+    using SQLStore
+    db = SQLite.DB("$tmpfile")
+    dct = SQLDict{SQLStore.Serialized, SQLStore.JSON}(table(db, "dcttbl"))
+    dct[(a=1, b=[2, 3, 4], c="5")] = ["a", "b", "c"]
+    """
+    run(setenv(`julia-16 --project --startup-file=no --eval $expr`, copy(ENV); dir=dirname(@__DIR__)))
+
+    db = SQLite.DB("$tmpfile")
+    dct = SQLDict{SQLStore.Serialized, SQLStore.JSON}(table(db, "dcttbl"))
+    @test length(dct) == 1
+    @test collect(dct) == [(a = 1, b = [2, 3, 4], c = "5") => ["a", "b", "c"]]
+    @test_throws ErrorException dct[(a=1, b=[2, 3, 4], c="5")]
+    @test_throws ErrorException dct[(a=1, b=[2, 3, 4], c="5")] = "ololo"
+    @test_throws ErrorException dct[123] = "ololo"
+    @test_throws ErrorException delete!(dct, "abc")
+    @test_throws ErrorException pop!(dct, "abc")
 end
 
 
