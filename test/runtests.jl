@@ -192,7 +192,7 @@ using Test
         @test length(tbl) == 4
         @test isequal([r.a for r in collect(tbl)], [1, missing, 3, 4])
         @test only((;a=1), tbl) == (a=1, b=Dict(:a => 5), c=[1, 2, 3])
-        @test filter((;a=missing), tbl)
+        @test isequal(only((;a=missing), tbl), (a=missing, b=[1, 2, 3], c=[1, 2, 3]))
         @test isequal(only("a is null", tbl), (a=missing, b=[1, 2, 3], c=[1, 2, 3]))
         @test only((;a=4), tbl) == (a=4, b=[1, 2, 3], c=Dict(:a => 5))
     end

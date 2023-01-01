@@ -58,9 +58,9 @@ The filtering `query` corresponds to the SQL `WHERE` clause. It can be specified
 
 query2sql(tbl, q::AbstractString) = q, (;)
 query2sql(tbl, q::NamedTuple{()}) = "1", (;)  # always-true filter
-@generated query2sql(tbl, q::NamedTuple{names}) where {names} = @p begin
-    map(names) do k
-        "$k = :$k"
+@generated query2sql(tbl, q::NamedTuple{names, TTypes}) where {names, TTypes} = @p begin
+    map(names, TTypes.parameters) do k, T
+        T === Missing ? "$k is null" : "$k = :$k"
     end
     return :($(join(__, " and ")), process_insert_row(q))
 end
