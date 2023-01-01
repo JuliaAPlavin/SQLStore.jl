@@ -222,6 +222,8 @@ end
 
 import CompatHelperLocal as CHL
 CHL.@check()
+import Aqua
+Aqua.test_all(SQLStore; ambiguities=false, unbound_args=false)
 
 using Documenter, DocumenterMarkdown
 makedocs(format=Markdown(), modules=[SQLStore], root="../docs")
