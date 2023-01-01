@@ -7,6 +7,15 @@ Supported types:
 - Any type can be combined with `Missing` as in `Union{Int, Missing}`. This allows `NULL`s in the corresponding column.
 """
 
+struct Serialized end
+struct JSON end
+
+
+actual_julia_type(T::Type) = T
+actual_julia_type(::Type{<:JSON}) = Any
+actual_julia_type(::Type{<:Serialized}) = Any
+
+
 colspec(name, ::Type{Rowid}) = "$name integer primary key"
 function colspec(name, T::Type)
     ct = coltype(T)
@@ -22,8 +31,10 @@ coltype(::Type{Int}) = "int not null"
 coltype(::Type{Float64}) = "real not null"
 coltype(::Type{String}) = "text not null"
 coltype(::Type{DateTime}) = "text not null"
-coltype(::Type{Dict}) = "text not null"
-coltype(::Type{Vector}) = "text not null"
+coltype(::Type{Dict}) = (Base.depwarn("Pass SQLStore.JSON as type instead", :coltype); "text not null")
+coltype(::Type{Vector}) = (Base.depwarn("Pass SQLStore.JSON as type instead", :coltype); "text not null")
+coltype(::Type{JSON}) = "text not null"
+coltype(::Type{Serialized}) = "blob not null"
 coltype(::Type{Any}) = ""
 coltype(::Type{Union{T, Missing}}) where {T} = replace(coltype(T), " not null" => "")
 
@@ -32,17 +43,26 @@ colcheck(name, ::Type{Int}) = "typeof($name) = 'integer'"
 colcheck(name, ::Type{Float64}) = "typeof($name) = 'real'"
 colcheck(name, ::Type{String}) = "typeof($name) = 'text'"
 colcheck(name, ::Type{DateTime}) = "typeof($name) = 'text' and $name == strftime('%Y-%m-%d %H:%M:%f', $name)"
-colcheck(name, ::Type{Dict}) = "json_valid($name)"
-colcheck(name, ::Type{Vector}) = "json_valid($name)"
+colcheck(name, ::Type{Dict}) = (Base.depwarn("Pass SQLStore.JSON as type instead", :colcheck); "json_valid($name)")
+colcheck(name, ::Type{Vector}) = (Base.depwarn("Pass SQLStore.JSON as type instead", :colcheck); "json_valid($name)")
+colcheck(name, ::Type{JSON}) = "json_valid($name)"
+colcheck(name, ::Type{Serialized}) = ""
 colcheck(name, ::Type{Any}) = ""
 colcheck(name, ::Type{Union{T, Missing}}) where {T} = "($(colcheck(name, T))) or $name is null"
 
 
-process_insert_row(row) = map(process_insert_field, row)
-process_insert_field(x) = x
-process_insert_field(x::DateTime) = Dates.format(x, dateformat"yyyy-mm-dd HH:MM:SS.sss")
-process_insert_field(x::Dict) = JSON3.write(x)
-process_insert_field(x::Vector) = JSON3.write(x)
+@generated function process_insert_row(schema, row::NamedTuple{names}) where {names}
+    values = map(names) do k
+        T = k == ROWID_NAME ? :(Rowid) : :(schema.$k.type)
+        :(process_insert_field($T, row.$k))
+    end
+    :( NamedTuple{$names}(($(values...),)) )
+end
+process_insert_field(T::Type, x) = x::T
+process_insert_field(::Type{Rowid}, x) = x::Int
+process_insert_field(::Type{DateTime}, x::DateTime) = Dates.format(x, dateformat"yyyy-mm-dd HH:MM:SS.sss")
+process_insert_field(::Type{JSON}, x) = JSON3.write(x)
+process_insert_field(::Type{Serialized}, x) = x
 
 process_select_row(schema, row::SQLite.Row) = process_select_row(schema, row, Val(Tuple(Tables.columnnames(row))))
 @generated function process_select_row(schema, row, ::Val{names}) where {names}
@@ -55,4 +75,5 @@ end
 process_select_field(T::Type, x) = x::T
 process_select_field(::Type{Rowid}, x) = x::Int
 process_select_field(::Type{DateTime}, x) = DateTime(x, dateformat"yyyy-mm-dd HH:MM:SS.sss")
-process_select_field(::Type{Dict}, x) = copy(JSON3.read(x))
+process_select_field(::Type{JSON}, x) = copy(JSON3.read(x))
+process_select_field(::Type{Serialized}, x) = x

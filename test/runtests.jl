@@ -5,18 +5,18 @@ using Test
 
 
 db = SQLite.DB()
-create_table(db, "tbl_pk", @NamedTuple{a::Int, b::String, c::Dict, d::DateTime}; constraints="PRIMARY KEY (a)")
+create_table(db, "tbl_pk", @NamedTuple{a::Int, b::String, c::SQLStore.JSON, d::DateTime}; constraints="PRIMARY KEY (a)")
 
 @testset "create table" begin
     tbl = create_table(db, "tbl_1", @NamedTuple{a::Int, b::String, c::Dict, d::DateTime}; constraints="PRIMARY KEY (a)")
     @test tbl.name == "tbl_1"
     @test schema(tbl).names == (:a, :b, :c, :d)
     @test table(db, "tbl_1") == tbl
-    @test_throws ErrorException create_table(db, "tbl_1", @NamedTuple{a::Int, b::String, c::Dict, d::DateTime}; constraints="PRIMARY KEY (a)")
-    @test create_table(db, "tbl_1", @NamedTuple{a::Int, b::String, c::Dict, d::DateTime}; constraints="PRIMARY KEY (a)", keep_compatible=true) == tbl
-    @test_throws ErrorException create_table(db, "tbl_1", @NamedTuple{a::Int, b::String, c::Dict, d::DateTime}; keep_compatible=true)
+    @test_throws ErrorException create_table(db, "tbl_1", @NamedTuple{a::Int, b::String, c::SQLStore.JSON, d::DateTime}; constraints="PRIMARY KEY (a)")
+    @test create_table(db, "tbl_1", @NamedTuple{a::Int, b::String, c::SQLStore.JSON, d::DateTime}; constraints="PRIMARY KEY (a)", keep_compatible=true) == tbl
+    @test_throws ErrorException create_table(db, "tbl_1", @NamedTuple{a::Int, b::String, c::SQLStore.JSON, d::DateTime}; keep_compatible=true)
     @test_throws ErrorException create_table(db, "tbl_1", @NamedTuple{a::Int, b::String}; constraints="PRIMARY KEY (a)", keep_compatible=true)
-    @test_throws ErrorException create_table(db, "tbl_1", @NamedTuple{a::Union{Int, Missing}, b::String, c::Dict, d::DateTime}; constraints="PRIMARY KEY (a)", keep_compatible=true)
+    @test_throws ErrorException create_table(db, "tbl_1", @NamedTuple{a::Union{Int, Missing}, b::String, c::SQLStore.JSON, d::DateTime}; constraints="PRIMARY KEY (a)", keep_compatible=true)
 end
 
 @testset "populate table" begin
@@ -182,7 +182,7 @@ end
 execute(db, "drop table tbl_pk")
 
 @testset "more complex types" begin
-    create_table(db, "tbl_nt", @NamedTuple{a::Union{Int, Missing}, b::Dict, c::Vector})
+    create_table(db, "tbl_nt", @NamedTuple{a::Union{Int, Missing}, b::SQLStore.JSON, c::SQLStore.Serialized})
     tbl = table(db, "tbl_nt")
     # all are valid...
     push!(tbl, (a=1, b=Dict(:a => 5), c=[1, 2, 3]))
@@ -201,7 +201,7 @@ if Threads.nthreads() == 1
     @warn "Julia is started with a single thread, cannot test multithreading"
 end
 @testset "multithreaded" begin
-    create_table(db, "tbl_thread", @NamedTuple{a::Union{Int, Missing}, b::Dict, c::Vector})
+    create_table(db, "tbl_thread", @NamedTuple{a::Union{Int, Missing}, b::SQLStore.Serialized, c::SQLStore.JSON})
     tbl = table(db, "tbl_thread")
     N = 1000
     @sync for i in 1:N
@@ -228,14 +228,14 @@ end
     @test length(dct) == 0
     @test isempty(dct)
     @test_throws KeyError dct["abc"]
-    @test_throws KeyError dct[123]
+    @test_throws Exception dct[123]
 
     dct["abc"] = 1
     @test length(dct) == 1
     @test !isempty(dct)
     @test dct["abc"] == 1
     @test_throws KeyError dct["def"]
-    @test_throws KeyError dct[123]
+    @test_throws Exception dct[123]
 
     @test delete!(dct, "abc") === dct
     @test isempty(dct)

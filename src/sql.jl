@@ -62,7 +62,7 @@ query2sql(tbl, q::NamedTuple{()}) = "1", (;)  # always-true filter
     map(names, TTypes.parameters) do k, T
         T === Missing ? "$k is null" : "$k = :$k"
     end
-    return :($(join(__, " and ")), process_insert_row(q))
+    return :($(join(__, " and ")), process_insert_row(tbl.schema, q))
 end
 query2sql(tbl, q::Tuple{AbstractString, Vararg}) = first(q), Base.tail(q)
 query2sql(tbl, q::Tuple{AbstractString, NamedTuple}) = first(q), last(q)
@@ -80,6 +80,6 @@ setquery2sql(tbl, q::NamedTuple) = @p begin
     map(keys(q), values(q)) do k, v
         "$k = :$prefix$k"
     end
-    return join(__, ", "), add_prefix_to_fieldnames(process_insert_row(q), Val(prefix))
+    return join(__, ", "), add_prefix_to_fieldnames(process_insert_row(tbl.schema, q), Val(prefix))
 end
 setquery2sql(tbl, q::Tuple{AbstractString, NamedTuple}) = first(q), last(q)

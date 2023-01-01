@@ -4,17 +4,17 @@ struct SQLDict{K, V, TKC, TVC} <: AbstractDict{K, V}
     columns_value::TVC
 end
 
-SQLDict(tbl::Table, columns_key, columns_value) = SQLDict{Any, Any, typeof(columns_key), typeof(columns_value)}(tbl, columns_key, columns_value)
+# SQLDict(tbl::Table, columns_key, columns_value) = SQLDict{Any, Any, typeof(columns_key), typeof(columns_value)}(tbl, columns_key, columns_value)
 
 function SQLDict{K, V}(tbl::TableNonexistent) where {K, V}
     tbl = create_table(tbl.db, tbl.name, @NamedTuple{k::K, v::V}; constraints="PRIMARY KEY (k)")
-    SQLDict{K, V, Symbol, Symbol}(tbl, :k, :v)
+    SQLDict{actual_julia_type(K), actual_julia_type(V), Symbol, Symbol}(tbl, :k, :v)
 end
 
 function SQLDict{K, V}(tbl::Table) where {K, V}
     # ensure compatible:
     create_table(tbl.db, tbl.name, @NamedTuple{k::K, v::V}; constraints="PRIMARY KEY (k)", keep_compatible=true)
-    SQLDict{K, V, Symbol, Symbol}(tbl, :k, :v)
+    SQLDict{actual_julia_type(K), actual_julia_type(V), Symbol, Symbol}(tbl, :k, :v)
 end
 
 function Base.get(dct::SQLDict, key, default)
@@ -29,7 +29,7 @@ function Base.get(dct::SQLDict, key, default)
 end
 
 function Base.setindex!(dct::SQLDict{K, V}, val::V, key::K) where {K, V}
-    rowvals = process_insert_row(merge(wrap_value(dct.columns_key, key), wrap_value(dct.columns_value, val)))
+    rowvals = process_insert_row(dct.tbl.schema, merge(wrap_value(dct.columns_key, key), wrap_value(dct.columns_value, val)))
     allcols = union_cols(dct.columns_key, dct.columns_value)
     execute(
         dct.tbl.db,

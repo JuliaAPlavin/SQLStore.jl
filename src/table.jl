@@ -93,11 +93,9 @@ function parse_sql_to_schema(sql::AbstractString)
     types = [
         [
             TM
-            for T in [Bool, Int, Float64, String, DateTime]
+            for T in [Bool, Int, Float64, String, DateTime, JSON, Serialized]
             for TM in [T, Union{T, Missing}]
         ];
-        # UnionAlls don't work with missing for now:
-        Dict;
         # don't need missing:
         Any; Rowid;
     ]
@@ -126,7 +124,7 @@ end
 Insert the `row` to `tbl`. Field values are converted to SQL types.
 """
 function Base.push!(tbl::Table, row::NamedTuple)
-    vals = process_insert_row(row)
+    vals = process_insert_row(tbl.schema, row)
     fnames = keys(vals)
     if isempty(vals)
         execute(tbl.db, "insert into $(tbl.name) default values")
