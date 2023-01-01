@@ -327,7 +327,7 @@ end
 
 @testset "between julia versions" begin
     try
-        run(`julia-16 -v`)
+        run(`julia-17 -v`)
     catch
         @warn "Cannot test persistence between Julia versions"
         return
@@ -339,7 +339,7 @@ end
     dct = SQLDict{SQLStore.Serialized, SQLStore.JSON}(table(db, "dcttbl"))
     dct[(a=1, b=[2, 3, 4], c="5")] = ["a", "b", "c"]
     """
-    run(setenv(`julia-16 --project --startup-file=no --eval $expr`, copy(ENV); dir=dirname(@__DIR__)))
+    run(setenv(`julia-17 --project --startup-file=no --eval $expr`, copy(ENV); dir=dirname(@__DIR__)))
 
     db = SQLite.DB("$tmpfile")
 

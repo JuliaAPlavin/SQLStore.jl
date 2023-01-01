@@ -6,6 +6,7 @@ import JSON3
 import Tables
 using Tables: rowtable, schema, columnnames
 using DataPipes
+using FlexiMaps: flatmap
 using InvertedIndices: Not
 import DataAPI: All, Cols, ncol, nrow
 import StatsBase: sample

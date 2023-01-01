@@ -36,7 +36,7 @@ default_select(_) = All()
 @generated select2sql(tbl, s::Cols{TUP}) where {TUP} = @p begin
     1:fieldcount(TUP)
     map(:(select2sql(tbl, s.cols[$_])))
-    mapmany([_, ','], __)
+    flatmap([_, ','])
     __[1:end-1]
     :( string($(__...)) )
 end
