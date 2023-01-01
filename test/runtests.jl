@@ -22,13 +22,14 @@ using Test
     @testset "populate table" begin
         tbl = table(db, "tbl_pk")
         @test length(tbl) == 0
-        for i in 1:10
+        @test isempty(tbl)
+        for i in 1:5
             push!(tbl, (a=i, b="xyz $i", c=Dict("key" => "value $i"), d=DateTime(2020, 1, 2, 3, 4, i)))
         end
         @test_throws SQLite.SQLiteException push!(tbl, (a=1, b="", c=Dict(), d=now()))
-        @test_broken length(tbl) == 5
-        # will work when SQLite.jl gets updated... XXX: change 10 to 5 above then!!!
-        @test_broken append!(tbl, [
+        @test !isempty(tbl)
+        @test length(tbl) == 5
+        append!(tbl, [
             (a=i, b="xyz $i", c=Dict("key" => "value $i"), d=DateTime(2020, 1, 2, 3, 4, i))
             for i in 6:10
         ])
@@ -191,7 +192,7 @@ using Test
         @test length(tbl) == 4
         @test isequal([r.a for r in collect(tbl)], [1, missing, 3, 4])
         @test only((;a=1), tbl) == (a=1, b=Dict(:a => 5), c=[1, 2, 3])
-        @test_broken only((;a=missing), tbl)
+        @test filter((;a=missing), tbl)
         @test isequal(only("a is null", tbl), (a=missing, b=[1, 2, 3], c=[1, 2, 3]))
         @test only((;a=4), tbl) == (a=4, b=[1, 2, 3], c=Dict(:a => 5))
     end

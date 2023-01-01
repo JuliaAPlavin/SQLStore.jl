@@ -159,15 +159,9 @@ function Base.push!(tbl::Table, row::NamedTuple)
 end
 
 function Base.append!(tbl::Table, rows)
-    fnames = keys(rows[1])
-    @assert all(r -> keys(r) == fnames, rows)
-    stmt = DBInterface.prepare(db, "INSERT INTO tmp VALUES(?, ?, ?)")
-
-    executemany(
-        tbl.db,
-        "insert into $(tbl.name) ($(join(fnames, ", "))) values ($(join(":" .* string.(fnames), ", ")))",
-        map(process_insert_row, rows),
-    )
+    DBInterface.transaction(tbl.db) do
+        foreach(r -> push!(tbl, r), rows)
+    end
 end
 
 ncol(tbl::Table) = length(tbl.schema)
