@@ -265,10 +265,20 @@ end
         @test "d" ∈ keys(dct)
         @test !haskey(dct, "ABC")
         @test "ABC" ∉ keys(dct)
+
         @test get(dct, "d", nothing) === 20
         @test get(dct, "D", nothing) === nothing
         @test get(() -> error(), dct, "d") === 20
         @test get(() -> nothing, dct, "D") === nothing
+
+        @test get!(dct, "d", nothing) === 20
+        @test get!(dct, "D", 456) === 456
+        @test dct["d"] === 20 && dct["D"] === 456
+        delete!(dct, "D")
+        @test get!(() -> error(), dct, "d") === 20
+        @test get!(() -> 789, dct, "D") === 789
+        @test dct["d"] === 20 && dct["D"] === 789
+        delete!(dct, "D")
     end
     @test pop!(dct_base, "d") == 20
     for dct in [dct_base, dct_on]
