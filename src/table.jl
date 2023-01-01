@@ -49,6 +49,11 @@ Base.@kwdef struct Table
     schema
 end
 
+Base.@kwdef struct TableNonexistent
+    db
+    name::String
+end
+
 Tables.schema(tbl::Table) = Tables.Schema(keys(tbl.schema), @p tbl.schema |> map(_.type))
 Tables.columnnames(tbl::Table) = keys(tbl.schema)
 
@@ -63,10 +68,15 @@ The returned object supports:
 - Other: `nrow`, `length`, `count`, `any`.
 """
 function table(db, name::AbstractString)
-    schema = parse_sql_to_schema(sql_table_def(db, name))
-    Table(; db, name, schema)
+    if sql_has_table(db, name)
+        schema = parse_sql_to_schema(sql_table_def(db, name))
+        Table(; db, name, schema)
+    else
+        TableNonexistent(; db, name)
+    end
 end
 
+sql_has_table(db, name::AbstractString) = execute(db, "select * from sqlite_schema where name = :name", (;name)) |> rowtable |> !isempty
 sql_table_def(db, name::AbstractString) = @p execute(db, "select * from sqlite_schema where name = :name", (;name)) |> rowtable |> only |> __.sql
 
 function parse_sql_to_schema(sql::AbstractString)
