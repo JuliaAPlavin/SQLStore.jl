@@ -21,7 +21,7 @@ export
     sample,
     Not, All, Cols, ncol, nrow,
     schema, columnnames,
-    SQLDict
+    SQLDict, SQLDictON
 
 
 include("utils.jl")
