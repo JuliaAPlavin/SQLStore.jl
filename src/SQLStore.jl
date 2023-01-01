@@ -19,12 +19,14 @@ export
     WithRowid, Rowid,
     sample,
     Not, All, Cols, ncol, nrow,
-    schema, columnnames
+    schema, columnnames,
+    SQLDict
 
 
 include("utils.jl")
 include("sql.jl")
 include("conversion.jl")
 include("table.jl")
+include("dict.jl")
 
 end

@@ -218,6 +218,55 @@ using Test
         @test length(tbl) == 3*N
         @test asyncmap(i -> only((a=i,), tbl), 1:(3*N)) == sort(collect(tbl), by=r -> r.a)
     end
+
+    @testset "dict" begin
+        dct = SQLDict{String, Int}(table(db, "dcttbl"))
+        @test length(dct) == 0
+        @test isempty(dct)
+        @test_throws KeyError dct["abc"]
+        @test_throws KeyError dct[123]
+
+        dct["abc"] = 1
+        @test length(dct) == 1
+        @test !isempty(dct)
+        @test dct["abc"] == 1
+        @test_throws KeyError dct["def"]
+        @test_throws KeyError dct[123]
+
+        @test delete!(dct, "abc") === dct
+        @test isempty(dct)
+        @test delete!(dct, "abc") === dct  # doesn't throw
+
+        dct["abc"] = 10
+        dct["d"] = 20
+        @test length(dct) == 2
+        @test collect(dct) == ["abc" => 10, "d" => 20]
+        @test (dct["abc"] += 1) == 11
+        @test dct["abc"] == 11
+        @test haskey(dct, "d")
+        @test "d" ∈ keys(dct)
+        @test !haskey(dct, "ABC")
+        @test "ABC" ∉ keys(dct)
+        @test get(dct, "d", nothing) === 20
+        @test get(dct, "D", nothing) === nothing
+        @test pop!(dct, "d") == 20
+        @test pop!(dct, "d", 0) == 0
+        @test !haskey(dct, "d")
+
+        @test first(dct) == ("abc" => 11)
+
+        @test get!(dct, "abc", nothing) == 11
+        @test get!(dct, "ABC", 123) == 123
+        @test dct["ABC"] == 123
+        @test get!(dct, "ABC", nothing) == 123
+        @test get!(() -> 456, dct, "def") == 456
+        @test get!(() -> error(""), dct, "def") == 456
+        @test dct["def"] == 456
+        @test collect(dct) == ["abc" => 11, "ABC" => 123, "def" => 456]
+
+        empty!(dct)
+        @test isempty(dct)
+    end
 end
 
 
