@@ -8,6 +8,7 @@ using Tables: rowtable, schema, columnnames
 using DataPipes
 using InvertedIndices: Not
 import DataAPI: All, Cols, ncol, nrow
+import StatsBase: sample
 import SQLite
 
 export
