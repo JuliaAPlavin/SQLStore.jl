@@ -8,5 +8,5 @@ Use SQLite tables as Array- or Dict-like collections.
 
 For array-like collections, `SQLStore.jl` uses `push!` to insert elements into the collection. Selection and filtering uses functions like `collect`, `filter`, `only` and others. Main data modification functions: `update!`, `updateonly!`, `updatesome!`, and similarly with `delete!`. Values of supported Julia types are automatically converted to/from corresponding SQLite types.
 
-See the [Pluto notebook]() for more examples, and docstrings for more details on specific functions.
+See the [Pluto notebook](https://aplavin.github.io/SQLStore.jl/test/examples.html) for more examples, and docstrings for more details on specific functions.
 
