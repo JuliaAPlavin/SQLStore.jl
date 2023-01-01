@@ -13,12 +13,9 @@ begin
 	using SQLStore
 end
 
-# ╔═╡ ae2d5cd9-7bd3-4a10-ae13-841b68622a3e
-using DataPipes, SplitApplyCombine
-
 # ╔═╡ 8f673d64-3c02-4750-bfc9-84fe66434a60
 md"""
-# Tables as collections
+# Tables as arrays
 """
 
 # ╔═╡ 8cd78512-c26f-40a7-a745-ef829a56219e
@@ -143,17 +140,13 @@ Dict(dct)
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-DataPipes = "02685ad9-2d12-40c3-9f73-c6aeda6a7ff5"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 SQLStore = "fadf0b4e-86bc-4bbb-a4ee-5c756d629598"
-SplitApplyCombine = "03a91e81-4c3e-53e1-a0a4-9c0c8f19dd66"
 
 [compat]
-DataPipes = "~0.2.11"
 Revise = "~3.3.3"
 SQLStore = "~0.1.12"
-SplitApplyCombine = "~1.2.1"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -162,7 +155,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.0-beta3"
 manifest_format = "2.0"
-project_hash = "0ebab33b456c4fe5a0209dd14c8de435c6d48b72"
+project_hash = "ca2762d8bf846630ff503cdee75194c913e1fc4b"
 
 [[deps.Accessors]]
 deps = ["Compat", "CompositionsBase", "ConstructionBase", "Future", "LinearAlgebra", "MacroTools", "Requires", "Test"]
@@ -598,7 +591,6 @@ version = "16.2.1+1"
 """
 
 # ╔═╡ Cell order:
-# ╠═ae2d5cd9-7bd3-4a10-ae13-841b68622a3e
 # ╠═8d5fac0e-c95a-11ec-0cea-d720897ec2f1
 # ╟─8f673d64-3c02-4750-bfc9-84fe66434a60
 # ╟─8cd78512-c26f-40a7-a745-ef829a56219e
