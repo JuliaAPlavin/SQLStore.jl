@@ -200,28 +200,28 @@ end
 if Threads.nthreads() == 1
     @warn "Julia is started with a single thread, cannot test multithreading"
 end
-# @testset "multithreaded" begin
-#     create_table(db, "tbl_thread", @NamedTuple{a::Union{Int, Missing}, b::SQLStore.Serialized, c::SQLStore.JSON})
-#     tbl = table(db, "tbl_thread")
-#     N = 1000
-#     @sync for i in 1:N
-#         Threads.@spawn push!(tbl, (a=i, b=Dict("key" => "value $i"), c=rand(i)))
-#     end
-#     @test length(tbl) == N
-#     @sync for i in 1:N
-#         @async push!(tbl, (a=N + i, b=Dict("key" => "value $i"), c=rand(i)))
-#     end
-#     @test length(tbl) == 2*N
-#     Threads.@threads for i in 1:N
-#         push!(tbl, (a=2*N + i, b=Dict("key" => "value $i"), c=rand(i)))
-#     end
-#     @test length(tbl) == 3*N
-#     @test asyncmap(i -> only((a=i,), tbl), 1:(3*N)) == sort(collect(tbl), by=r -> r.a)
-#     foreach(collect(tbl)) do r
-#         @test r.b["key"] == "value $(mod1(r.a, N))"
-#         @test length(r.c) == mod1(r.a, N)
-#     end
-# end
+@testset "multithreaded" begin
+    create_table(db, "tbl_thread", @NamedTuple{a::Union{Int, Missing}, b::SQLStore.Serialized, c::SQLStore.JSON})
+    tbl = table(db, "tbl_thread")
+    N = 1000
+    @sync for i in 1:N
+        Threads.@spawn push!(tbl, (a=i, b=Dict("key" => "value $i"), c=rand(i)))
+    end
+    @test length(tbl) == N
+    @sync for i in 1:N
+        @async push!(tbl, (a=N + i, b=Dict("key" => "value $i"), c=rand(i)))
+    end
+    @test length(tbl) == 2*N
+    Threads.@threads for i in 1:N
+        push!(tbl, (a=2*N + i, b=Dict("key" => "value $i"), c=rand(i)))
+    end
+    @test length(tbl) == 3*N
+    @test asyncmap(i -> only((a=i,), tbl), 1:(3*N)) == sort(collect(tbl), by=r -> r.a)
+    foreach(collect(tbl)) do r
+        @test r.b["key"] == "value $(mod1(r.a, N))"
+        @test length(r.c) == mod1(r.a, N)
+    end
+end
 
 @testset "dict basic" begin
     dct_base = SQLDict{String, Int}(table(db, "dcttbl"))
