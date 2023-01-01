@@ -10,6 +10,7 @@ using InvertedIndices: Not
 import DataAPI: All, Cols, ncol, nrow
 import StatsBase: sample
 import SQLite
+using Serialization
 
 export
     SQLite,

@@ -62,7 +62,11 @@ process_insert_field(T::Type, x) = x::T
 process_insert_field(::Type{Rowid}, x) = x::Int
 process_insert_field(::Type{DateTime}, x::DateTime) = Dates.format(x, dateformat"yyyy-mm-dd HH:MM:SS.sss")
 process_insert_field(::Type{JSON}, x) = JSON3.write(x)
-process_insert_field(::Type{Serialized}, x) = x
+function process_insert_field(::Type{Serialized}, x)
+    buffer = IOBuffer()
+    Serialization.serialize(buffer, x)
+    return take!(buffer)
+end
 
 process_select_row(schema, row::SQLite.Row) = process_select_row(schema, row, Val(Tuple(Tables.columnnames(row))))
 @generated function process_select_row(schema, row, ::Val{names}) where {names}
@@ -76,4 +80,4 @@ process_select_field(T::Type, x) = x::T
 process_select_field(::Type{Rowid}, x) = x::Int
 process_select_field(::Type{DateTime}, x) = DateTime(x, dateformat"yyyy-mm-dd HH:MM:SS.sss")
 process_select_field(::Type{JSON}, x) = copy(JSON3.read(x))
-process_select_field(::Type{Serialized}, x) = x
+process_select_field(::Type{Serialized}, x) = Serialization.deserialize(IOBuffer(x))
