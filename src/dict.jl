@@ -29,6 +29,9 @@ function Base.get(dct::SQLDict, key, default)
 end
 
 function Base.setindex!(dct::SQLDict{K, V}, val::V, key::K) where {K, V}
+    badnames = intersect(union_cols(dct.columns_key), dct.tbl.reserialize_mismatches)
+    isempty(badnames) || error("Trying to query by columns that don't match their re-serialization: $(join(dct.tbl.name .* "." .* string.(badnames), ", "))")
+
     rowvals = process_insert_row(dct.tbl.schema, merge(wrap_value(dct.columns_key, key), wrap_value(dct.columns_value, val)))
     allcols = union_cols(dct.columns_key, dct.columns_value)
     execute(
@@ -96,4 +99,5 @@ Base.isempty(dct::SQLDict) = isempty(dct.tbl)
 
 wrap_value(keycol::Symbol, key) = NamedTuple{(keycol,)}((key,))
 unwrap_value(valcol::Symbol, val::NamedTuple) = (@assert keys(val) == (valcol,); only(val))
+union_cols(a::Symbol) = (a,)
 union_cols(a::Symbol, b::Symbol) = (a, b)
