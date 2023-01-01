@@ -267,6 +267,8 @@ end
         @test "ABC" ∉ keys(dct)
         @test get(dct, "d", nothing) === 20
         @test get(dct, "D", nothing) === nothing
+        @test get(() -> error(), dct, "d") === 20
+        @test get(() -> nothing, dct, "D") === nothing
     end
     @test pop!(dct_base, "d") == 20
     for dct in [dct_base, dct_on]

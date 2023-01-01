@@ -26,11 +26,13 @@ for T in [SQLDict, SQLDictON]
     end
 end
 
+Base.get(dct::SQLAbstractDict, key, default) = get(Returns(default), dct, key)
 
-function Base.get(dct::SQLDict{K}, key::K, default) where {K}
+
+function Base.get(default::Function, dct::SQLDict{K}, key::K) where {K}
     rows = filter(wrap_value(dct.columns_key, key), dct.tbl, Cols(dct.columns_value); limit=2)
     if length(rows) == 0
-        return default
+        return default()
     elseif length(rows) == 1
         return unwrap_value(dct.columns_value, only(rows))
     elseif length(rows) >= 2
@@ -74,10 +76,10 @@ end
 
 
 
-function Base.get(dct::SQLDictON{K}, key::K, default) where {K}
+function Base.get(default::Function, dct::SQLDictON{K}, key::K) where {K}
     keyrows = @p collect(dct.tbl, Cols(Rowid(), dct.columns_key)) |> filter(isequal(key, _[dct.columns_key]))
     if length(keyrows) == 0
-        return default
+        return default()
     elseif length(keyrows) == 1
         row = only((;only(keyrows)._rowid_), dct.tbl, Cols(dct.columns_value))
         return unwrap_value(dct.columns_value, row)
