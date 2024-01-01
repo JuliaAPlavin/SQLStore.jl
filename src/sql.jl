@@ -64,8 +64,9 @@ query2sql(tbl, q::NamedTuple{()}) = "1", (;)  # always-true filter
     end
     join(__, " and ")
     return quote
-        badnames = intersect($names, tbl.reserialize_mismatches)
-        isempty(badnames) || error("Trying to query by columns that don't match their re-serialization: $(join(tbl.name .* "." .* string.(badnames), ", "))")
+        if !isdisjoint($names, tbl.reserialize_mismatches)
+            error("Trying to query by columns that don't match their re-serialization: " * join(tbl.name .* "." .* string.(intersect($names, tbl.reserialize_mismatches)), ", "))
+        end
         $__, process_insert_row(tbl.schema, q)
     end
 end

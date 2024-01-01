@@ -59,7 +59,7 @@ colcheck(name, ::Type{Union{T, Missing}}) where {T} = "($(colcheck(name, T))) or
     end
     :( NamedTuple{$names}(($(values...),)) )
 end
-process_insert_field(T::Type, x) = x::T
+process_insert_field(::Type{T}, x) where {T} = x::T
 process_insert_field(::Type{Union{Missing, T}}, x::Missing) where {T} = x
 process_insert_field(::Type{Union{Missing, T}}, x) where {T} = process_insert_field(T, x)
 process_insert_field(::Type{Rowid}, x) = x::Int
@@ -81,7 +81,7 @@ process_select_row(schema, row#=::SQLite.Row=#) = process_select_row(schema, row
     end
     :( NamedTuple{$names}(($(values...),)) )
 end
-process_select_field(T::Type, x) = x::T
+process_select_field(::Type{T}, x) where {T} = x::T
 process_select_field(::Type{Union{Missing, T}}, x::Missing) where {T} = x
 process_select_field(::Type{Union{Missing, T}}, x) where {T} = process_select_field(T, x)
 process_select_field(::Type{Bool}, x) = Bool(x)
