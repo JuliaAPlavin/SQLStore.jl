@@ -341,48 +341,48 @@ end
 @testitem "between julia versions" begin
     try
         run(`/home/aplavin/.juliaup/bin/julia +1.7 -v`)
-    catch
-        @warn "Cannot test persistence between Julia versions"
-        return
+
+        tmpfile = tempname()
+        expr = """
+        ENV["JULIA_PKG_USE_CLI_GIT"] = "true"  # VSCode runner ignores startup.jl
+        push!(LOAD_PATH, "@stdlib")  # XXX: why needed?
+        import Pkg
+        Pkg.activate(temp=true)
+        Pkg.add(path="$(dirname(@__DIR__))")
+
+        using SQLStore
+        db = SQLite.DB("$tmpfile")
+        dct = SQLDict{SQLStore.Serialized, SQLStore.JSON}(table(db, "dcttbl"))
+        dct[(a=1, b=[2, 3, 4], c="5")] = ["a", "b", "c"]
+        """
+        run(`/home/aplavin/.juliaup/bin/julia +1.7 --startup-file=no --eval $expr`)
+
+        db = SQLite.DB("$tmpfile")
+
+        dct = SQLDict{SQLStore.Serialized, SQLStore.JSON}(table(db, "dcttbl"))
+        @test length(dct) == 1
+        @test collect(dct) == [(a = 1, b = [2, 3, 4], c = "5") => ["a", "b", "c"]]
+        @test_throws ErrorException dct[(a=1, b=[2, 3, 4], c="5")]
+        @test_throws ErrorException dct[(a=1, b=[2, 3, 4], c="5")] = "ololo"
+        @test_throws ErrorException dct[123] = "ololo"
+        @test_throws ErrorException delete!(dct, "abc")
+        @test_throws ErrorException pop!(dct, "abc")
+
+        dct = SQLDictON{SQLStore.Serialized, SQLStore.JSON}(table(db, "dcttbl"))
+        @test length(dct) == 1
+        @test collect(dct) == [(a = 1, b = [2, 3, 4], c = "5") => ["a", "b", "c"]]
+        @test dct[(a=1, b=[2, 3, 4], c="5")] == ["a", "b", "c"]
+        dct[(a=1, b=[2, 3, 4], c="5")] = "ololo1"
+        dct[123] = "ololo2"
+        @test length(dct) == 2
+        @test dct[(a=1, b=[2, 3, 4], c="5")] == "ololo1"
+        @test dct[123] == "ololo2"
+        delete!(dct, "abc")
+        @test pop!(dct, 123) == "ololo2"
+        @test collect(dct) == [(a = 1, b = [2, 3, 4], c = "5") => "ololo1"]
+    catch e
+        @warn "Cannot test persistence between Julia versions" exception=e
     end
-    tmpfile = tempname()
-    expr = """
-    ENV["JULIA_PKG_USE_CLI_GIT"] = "true"  # VSCode runner ignores startup.jl
-    push!(LOAD_PATH, "@stdlib")  # XXX: why needed?
-    import Pkg
-    Pkg.activate(temp=true)
-    Pkg.add(path="$(dirname(@__DIR__))")
-
-    using SQLStore
-    db = SQLite.DB("$tmpfile")
-    dct = SQLDict{SQLStore.Serialized, SQLStore.JSON}(table(db, "dcttbl"))
-    dct[(a=1, b=[2, 3, 4], c="5")] = ["a", "b", "c"]
-    """
-    run(`/home/aplavin/.juliaup/bin/julia +1.7 --startup-file=no --eval $expr`)
-
-    db = SQLite.DB("$tmpfile")
-
-    dct = SQLDict{SQLStore.Serialized, SQLStore.JSON}(table(db, "dcttbl"))
-    @test length(dct) == 1
-    @test collect(dct) == [(a = 1, b = [2, 3, 4], c = "5") => ["a", "b", "c"]]
-    @test_throws ErrorException dct[(a=1, b=[2, 3, 4], c="5")]
-    @test_throws ErrorException dct[(a=1, b=[2, 3, 4], c="5")] = "ololo"
-    @test_throws ErrorException dct[123] = "ololo"
-    @test_throws ErrorException delete!(dct, "abc")
-    @test_throws ErrorException pop!(dct, "abc")
-
-    dct = SQLDictON{SQLStore.Serialized, SQLStore.JSON}(table(db, "dcttbl"))
-    @test length(dct) == 1
-    @test collect(dct) == [(a = 1, b = [2, 3, 4], c = "5") => ["a", "b", "c"]]
-    @test dct[(a=1, b=[2, 3, 4], c="5")] == ["a", "b", "c"]
-    dct[(a=1, b=[2, 3, 4], c="5")] = "ololo1"
-    dct[123] = "ololo2"
-    @test length(dct) == 2
-    @test dct[(a=1, b=[2, 3, 4], c="5")] == "ololo1"
-    @test dct[123] == "ololo2"
-    delete!(dct, "abc")
-    @test pop!(dct, 123) == "ololo2"
-    @test collect(dct) == [(a = 1, b = [2, 3, 4], c = "5") => "ololo1"]
 end
 
 @testitem "_" begin
