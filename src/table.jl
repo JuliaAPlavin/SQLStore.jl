@@ -232,7 +232,7 @@ Base.only(tbl::Table, select=default_select(tbl)) = collect(tbl, select; limit=2
 
 function sample(query, tbl::Table, n::Int, select=default_select(tbl); replace=true)
     if n > 1 && replace
-        throw(ArgumentError("Sampling multiple elements with replacement is not supported"))
+        throw(ArgumentError("Sampling multiple elements with replacement is not supported. Call `sample(replace=false)` to sample without replacement."))
     end
     qstr, params = query2sql(tbl, query)
     qres = execute(tbl.db, "select $(select2sql(tbl, select)) from $(tbl.name) where $(qstr) order by random() limit $n", params)

@@ -110,27 +110,31 @@ end
     end
 
     @testset "random" begin
-        let rows = collect(tbl)
-            @test rand(tbl) ∈ rows
+        import StatsBase
 
-            @test_throws ArgumentError sample(tbl, 3)
-            @test length(sample(tbl, 3; replace=false)) == 3
-            @test issubset(sample(tbl, 3; replace=false), rows)
-            @test length(unique(sample(tbl, 3; replace=false))) == 3
+        @testset for sample in [SQLStore.sample, StatsBase.sample]
+            let rows = collect(tbl)
+                @test rand(tbl) ∈ rows
 
-            @test sort(sample(tbl, 10; replace=false)) == sort(rows)
-            @test_throws ErrorException sample(tbl, 100; replace=false)
-        end
-        let rows = filter("a >= 3", tbl)
-            @test rand("a >= 3", tbl) ∈ rows
+                @test_throws ArgumentError sample(tbl, 3)
+                @test length(sample(tbl, 3; replace=false)) == 3
+                @test issubset(sample(tbl, 3; replace=false), rows)
+                @test length(unique(sample(tbl, 3; replace=false))) == 3
 
-            @test_throws ArgumentError sample("a >= 3", tbl, 3)
-            @test length(sample("a >= 3", tbl, 3; replace=false)) == 3
-            @test issubset(sample("a >= 3", tbl, 3; replace=false), rows)
-            @test length(unique(sample("a >= 3", tbl, 3; replace=false))) == 3
+                @test sort(sample(tbl, 10; replace=false)) == sort(rows)
+                @test_throws ErrorException sample(tbl, 100; replace=false)
+            end
+            let rows = filter("a >= 3", tbl)
+                @test rand("a >= 3", tbl) ∈ rows
 
-            @test sort(sample("a >= 3", tbl, 8; replace=false)) == sort(rows)
-            @test_throws ErrorException sample("a >= 3", tbl, 100; replace=false)
+                @test_throws ArgumentError sample("a >= 3", tbl, 3)
+                @test length(sample("a >= 3", tbl, 3; replace=false)) == 3
+                @test issubset(sample("a >= 3", tbl, 3; replace=false), rows)
+                @test length(unique(sample("a >= 3", tbl, 3; replace=false))) == 3
+
+                @test sort(sample("a >= 3", tbl, 8; replace=false)) == sort(rows)
+                @test_throws ErrorException sample("a >= 3", tbl, 100; replace=false)
+            end
         end
     end
 

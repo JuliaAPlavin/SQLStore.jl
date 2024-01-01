@@ -8,7 +8,6 @@ using DataPipes
 using FlexiMaps: flatmap
 using InvertedIndices: Not
 import DataAPI: All, Cols, ncol, nrow
-import StatsBase: sample
 using Serialization
 
 export
@@ -16,7 +15,6 @@ export
     update!, updateonly!, updatesome!,
     deleteonly!, deletesome!,
     WithRowid, Rowid,
-    sample,
     Not, All, Cols, ncol, nrow,
     schema, columnnames,
     SQLDict, SQLDictON
