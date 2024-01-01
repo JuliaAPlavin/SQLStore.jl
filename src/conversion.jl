@@ -31,8 +31,6 @@ coltype(::Type{Int}) = "int not null"
 coltype(::Type{Float64}) = "real not null"
 coltype(::Type{String}) = "text not null"
 coltype(::Type{DateTime}) = "text not null"
-coltype(::Type{Dict}) = (Base.depwarn("Pass SQLStore.JSON as type instead", :coltype); "text not null")
-coltype(::Type{Vector}) = (Base.depwarn("Pass SQLStore.JSON as type instead", :coltype); "text not null")
 coltype(::Type{JSON}) = "text not null"
 coltype(::Type{Serialized}) = "blob not null"
 coltype(::Type{Any}) = ""
@@ -43,8 +41,6 @@ colcheck(name, ::Type{Int}) = "typeof($name) = 'integer'"
 colcheck(name, ::Type{Float64}) = "typeof($name) = 'real'"
 colcheck(name, ::Type{String}) = "typeof($name) = 'text'"
 colcheck(name, ::Type{DateTime}) = "typeof($name) = 'text' and $name == strftime('%Y-%m-%d %H:%M:%f', $name)"
-colcheck(name, ::Type{Dict}) = (Base.depwarn("Pass SQLStore.JSON as type instead", :colcheck); "json_valid($name)")
-colcheck(name, ::Type{Vector}) = (Base.depwarn("Pass SQLStore.JSON as type instead", :colcheck); "json_valid($name)")
 colcheck(name, ::Type{JSON}) = "json_valid($name)"
 colcheck(name, ::Type{Serialized}) = ""
 colcheck(name, ::Type{Any}) = ""

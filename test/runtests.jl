@@ -7,7 +7,7 @@ using TestItemRunner
     using Dates: DateTime
 
     db = SQLite.DB()
-    tbl = create_table(db, "tbl_1", @NamedTuple{a::Int, b::String, c::Dict, d::DateTime}; constraints="PRIMARY KEY (a)")
+    tbl = create_table(db, "tbl_1", @NamedTuple{a::Int, b::String, c::SQLStore.JSON, d::DateTime}; constraints="PRIMARY KEY (a)")
     @test tbl.name == "tbl_1"
     @test schema(tbl).names == (:a, :b, :c, :d)
     @test table(db, "tbl_1") == tbl
