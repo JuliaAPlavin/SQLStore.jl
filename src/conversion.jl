@@ -77,6 +77,7 @@ process_select_row(schema, row::SQLite.Row) = process_select_row(schema, row, Va
     :( NamedTuple{$names}(($(values...),)) )
 end
 process_select_field(T::Type, x) = x::T
+process_select_field(::Type{Bool}, x) = Bool(x)
 process_select_field(::Type{Rowid}, x) = x::Int
 process_select_field(::Type{DateTime}, x) = DateTime(x, dateformat"yyyy-mm-dd HH:MM:SS.sss")
 process_select_field(::Type{JSON}, x) = _json_materialize(JSON3.read(x))

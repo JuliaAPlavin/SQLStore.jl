@@ -37,6 +37,14 @@ end
     @test length(collect(tbl)) == 10
 end
 
+@testset "coltypes" begin
+    create_table(db, "tbl_types", @NamedTuple{a::Int, b::String, c::SQLStore.JSON, d::DateTime, e::Bool, f::Float64, g::Union{Missing,Int}}; constraints="PRIMARY KEY (a)")
+    tbl = table(db, "tbl_types")
+    push!(tbl, (a=1, b="xyz", c=Dict(:key => "value"), d=DateTime(2020, 1, 2, 3, 4, 1), e=true, f=1.0, g=5))
+    @test length(tbl) == 1
+    @test only(tbl) == (a=1, b="xyz", c=Dict(:key => "value"), d=DateTime(2020, 1, 2, 3, 4, 1), e=true, f=1.0, g=5)
+end
+
 @testset "summaries" begin
     tbl = table(db, "tbl_pk")
     @test schema(tbl).names == (:a, :b, :c, :d)
