@@ -186,8 +186,8 @@ Collect all rows from the `tbl` table.
 
 $SELECT_QUERY_DOC
 """
-function Base.collect(tbl::Table, select=default_select(tbl))
-    map(execute(tbl.db, "select $(select2sql(tbl, select)) from $(tbl.name)")) do r
+function Base.collect(tbl::Table, select=default_select(tbl); limit=nothing)
+    map(execute(tbl.db, "select $(select2sql(tbl, select)) from $(tbl.name) $(limit2sql(limit))")) do r
         process_select_row(tbl.schema, r)
     end
 end
@@ -216,10 +216,10 @@ $SELECT_QUERY_DOC
 """
 Base.first(query, tbl::Table, select=default_select(tbl)) = filter(query, tbl, select; limit=1) |> only
 Base.first(query, tbl::Table, n::Int, select=default_select(tbl)) = filter(query, tbl, select; limit=n)
-Base.first(tbl::Table, select=default_select(tbl)) = filter("1", tbl, select; limit=1) |> only
-Base.first(tbl::Table, n::Int, select=default_select(tbl)) = filter("1", tbl, select; limit=n)
+Base.first(tbl::Table, select=default_select(tbl)) = collect(tbl, select; limit=1) |> only
+Base.first(tbl::Table, n::Int, select=default_select(tbl)) = collect(tbl, select; limit=n)
 
-""" `only(query, tbl::Table, [select])`
+""" `only([query], tbl::Table, [select])`
 
 Select the only row from the `tbl` table filtered by the `query`. Throw an exception if zero or multiple rows match `query`.
 
@@ -228,6 +228,7 @@ $WHERE_QUERY_DOC
 $SELECT_QUERY_DOC
 """
 Base.only(query, tbl::Table, select=default_select(tbl)) = filter(query, tbl, select; limit=2) |> only
+Base.only(tbl::Table, select=default_select(tbl)) = collect(tbl, select; limit=2) |> only
 
 function sample(query, tbl::Table, n::Int, select=default_select(tbl); replace=true)
     if n > 1 && replace
