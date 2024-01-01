@@ -2,7 +2,6 @@ module SQLStore
 
 import DBInterface
 using Dates
-import JSON3
 import Tables
 using Tables: rowtable, schema, columnnames
 using DataPipes

@@ -6,17 +6,18 @@ using TestItemRunner
 @testitem "create table" begin
     using SQLite
     using Dates: DateTime
+    using JSON3
 
     db = SQLite.DB()
-    tbl = create_table(db, "tbl_1", @NamedTuple{a::Int, b::String, c::SQLStore.JSON, d::DateTime}; constraints="PRIMARY KEY (a)")
+    tbl = create_table(db, "tbl_1", @NamedTuple{a::Int, b::String, c::SQLStore.JSON3, d::DateTime}; constraints="PRIMARY KEY (a)")
     @test tbl.name == "tbl_1"
     @test schema(tbl).names == (:a, :b, :c, :d)
     @test table(db, "tbl_1") == tbl
-    @test_throws ErrorException create_table(db, "tbl_1", @NamedTuple{a::Int, b::String, c::SQLStore.JSON, d::DateTime}; constraints="PRIMARY KEY (a)")
-    @test create_table(db, "tbl_1", @NamedTuple{a::Int, b::String, c::SQLStore.JSON, d::DateTime}; constraints="PRIMARY KEY (a)", keep_compatible=true) == tbl
-    @test_throws ErrorException create_table(db, "tbl_1", @NamedTuple{a::Int, b::String, c::SQLStore.JSON, d::DateTime}; keep_compatible=true)
+    @test_throws ErrorException create_table(db, "tbl_1", @NamedTuple{a::Int, b::String, c::SQLStore.JSON3, d::DateTime}; constraints="PRIMARY KEY (a)")
+    @test create_table(db, "tbl_1", @NamedTuple{a::Int, b::String, c::SQLStore.JSON3, d::DateTime}; constraints="PRIMARY KEY (a)", keep_compatible=true) == tbl
+    @test_throws ErrorException create_table(db, "tbl_1", @NamedTuple{a::Int, b::String, c::SQLStore.JSON3, d::DateTime}; keep_compatible=true)
     @test_throws ErrorException create_table(db, "tbl_1", @NamedTuple{a::Int, b::String}; constraints="PRIMARY KEY (a)", keep_compatible=true)
-    @test_throws ErrorException create_table(db, "tbl_1", @NamedTuple{a::Union{Int, Missing}, b::String, c::SQLStore.JSON, d::DateTime}; constraints="PRIMARY KEY (a)", keep_compatible=true)
+    @test_throws ErrorException create_table(db, "tbl_1", @NamedTuple{a::Union{Int, Missing}, b::String, c::SQLStore.JSON3, d::DateTime}; constraints="PRIMARY KEY (a)", keep_compatible=true)
 end
 
 @testitem "coltypes" begin
@@ -24,7 +25,7 @@ end
     using Dates: DateTime
 
     db = SQLite.DB()
-    create_table(db, "tbl_types", @NamedTuple{a::Int, b::String, c::SQLStore.JSON, d::DateTime, e::Bool, f::Float64, g::Union{Missing,Int}}; constraints="PRIMARY KEY (a)")
+    create_table(db, "tbl_types", @NamedTuple{a::Int, b::String, c::SQLStore.JSON3, d::DateTime, e::Bool, f::Float64, g::Union{Missing,Int}}; constraints="PRIMARY KEY (a)")
     tbl = table(db, "tbl_types")
     push!(tbl, (a=1, b="xyz", c=Dict(:key => "value"), d=DateTime(2020, 1, 2, 3, 4, 1), e=true, f=1.0, g=5))
     @test length(tbl) == 1
@@ -36,7 +37,7 @@ end
     using Dates: DateTime, now
 
     db = SQLite.DB()
-    tbl = create_table(db, "tbl_pk", @NamedTuple{a::Int, b::String, c::SQLStore.JSON, d::DateTime}; constraints="PRIMARY KEY (a)")
+    tbl = create_table(db, "tbl_pk", @NamedTuple{a::Int, b::String, c::SQLStore.JSON3, d::DateTime}; constraints="PRIMARY KEY (a)")
 
     @testset "populate table" begin
         @test length(tbl) == 0
@@ -202,7 +203,7 @@ end
 @testitem "more complex types" begin
     using SQLite
 
-    tbl = create_table(SQLite.DB(), "tbl_nt", @NamedTuple{a::Union{Int, Missing}, b::SQLStore.JSON, c::SQLStore.Serialized})
+    tbl = create_table(SQLite.DB(), "tbl_nt", @NamedTuple{a::Union{Int, Missing}, b::SQLStore.JSON3, c::SQLStore.Serialized})
     # all are valid...
     push!(tbl, (a=1, b=Dict(:a => 5), c=[1, 2, 3]))
     push!(tbl, (a=missing, b=[1, 2, 3], c=[1, 2, 3]))
@@ -222,7 +223,7 @@ end
 @testitem "multithreaded" begin
     using SQLite
 
-    tbl = create_table(SQLite.DB(), "tbl_thread", @NamedTuple{a::Union{Int, Missing}, b::SQLStore.Serialized, c::SQLStore.JSON})
+    tbl = create_table(SQLite.DB(), "tbl_thread", @NamedTuple{a::Union{Int, Missing}, b::SQLStore.Serialized, c::SQLStore.JSON3})
     N = 1000
     @sync for i in 1:N
         Threads.@spawn push!(tbl, (a=i, b=Dict("key" => "value $i"), c=rand(i)))
@@ -330,8 +331,8 @@ end
     using SQLite
 
     db = SQLite.DB()
-    dct_base = SQLDict{SQLStore.Serialized, SQLStore.JSON}(table(db, "dct2"))
-    dct_on = SQLDictON{SQLStore.Serialized, SQLStore.JSON}(table(db, "dct2"))
+    dct_base = SQLDict{SQLStore.Serialized, SQLStore.JSON3}(table(db, "dct2"))
+    dct_on = SQLDictON{SQLStore.Serialized, SQLStore.JSON3}(table(db, "dct2"))
 
     dct_base["abc"] = 123
     dct_on[(a="abc", b=123)] = [1, 2, 3]
@@ -367,14 +368,14 @@ end
         using SQLStore
         using SQLite
         db = SQLite.DB("$tmpfile")
-        dct = SQLDict{SQLStore.Serialized, SQLStore.JSON}(table(db, "dcttbl"))
+        dct = SQLDict{SQLStore.Serialized, SQLStore.JSON3}(table(db, "dcttbl"))
         dct[(a=1, b=[2, 3, 4], c="5")] = ["a", "b", "c"]
         """
         run(`/home/aplavin/.juliaup/bin/julia +1.7 --startup-file=no --eval $expr`)
 
         db = SQLite.DB("$tmpfile")
 
-        dct = SQLDict{SQLStore.Serialized, SQLStore.JSON}(table(db, "dcttbl"))
+        dct = SQLDict{SQLStore.Serialized, SQLStore.JSON3}(table(db, "dcttbl"))
         @test length(dct) == 1
         @test collect(dct) == [(a = 1, b = [2, 3, 4], c = "5") => ["a", "b", "c"]]
         @test_throws ErrorException dct[(a=1, b=[2, 3, 4], c="5")]
@@ -383,7 +384,7 @@ end
         @test_throws ErrorException delete!(dct, "abc")
         @test_throws ErrorException pop!(dct, "abc")
 
-        dct = SQLDictON{SQLStore.Serialized, SQLStore.JSON}(table(db, "dcttbl"))
+        dct = SQLDictON{SQLStore.Serialized, SQLStore.JSON3}(table(db, "dcttbl"))
         @test length(dct) == 1
         @test collect(dct) == [(a = 1, b = [2, 3, 4], c = "5") => ["a", "b", "c"]]
         @test dct[(a=1, b=[2, 3, 4], c="5")] == ["a", "b", "c"]
@@ -409,7 +410,7 @@ end
     let db = SQLCipher.DB(dbfile)
         execute(db, """PRAGMA key="password" """)
 
-        create_table(db, "tbl_pk", @NamedTuple{a::Int, b::String, c::SQLStore.JSON}; constraints="PRIMARY KEY (a)")
+        create_table(db, "tbl_pk", @NamedTuple{a::Int, b::String, c::SQLStore.JSON3}; constraints="PRIMARY KEY (a)")
 
         tbl = table(db, "tbl_pk")
         @test length(tbl) == 0

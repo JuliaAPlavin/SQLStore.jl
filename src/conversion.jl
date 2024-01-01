@@ -3,16 +3,17 @@ Supported types:
 - `Int`, `Float64`, `String` are directly stored as corresponding SQL types.
 - `Bool`s stored as `0` and `1` `INTEGER`s.
 - `DateTime`s are stored as `TEXT` with the `'%Y-%m-%d %H:%M:%f'` format.
-- `Dict`s and `Vector`s get translated to their `JSON` representations.
+- `SQLStore.JSON3`: any object supported by JSON3.jl gets translated to its `JSON` representation.
+- `SQLStore.Serialized`: any object gets `serialize`d.
 - Any type can be combined with `Missing` as in `Union{Int, Missing}`. This allows `NULL`s in the corresponding column.
 """
 
 struct Serialized end
-struct JSON end
+struct JSON3 end
 
 
 actual_julia_type(T::Type) = T
-actual_julia_type(::Type{<:JSON}) = Any
+actual_julia_type(::Type{<:JSON3}) = Any
 actual_julia_type(::Type{<:Serialized}) = Any
 
 
@@ -31,7 +32,7 @@ coltype(::Type{Int}) = "int not null"
 coltype(::Type{Float64}) = "real not null"
 coltype(::Type{String}) = "text not null"
 coltype(::Type{DateTime}) = "text not null"
-coltype(::Type{JSON}) = "text not null"
+coltype(::Type{JSON3}) = "text not null"
 coltype(::Type{Serialized}) = "blob not null"
 coltype(::Type{Any}) = ""
 coltype(::Type{Union{T, Missing}}) where {T} = replace(coltype(T), " not null" => "")
@@ -41,7 +42,7 @@ colcheck(name, ::Type{Int}) = "typeof($name) = 'integer'"
 colcheck(name, ::Type{Float64}) = "typeof($name) = 'real'"
 colcheck(name, ::Type{String}) = "typeof($name) = 'text'"
 colcheck(name, ::Type{DateTime}) = "typeof($name) = 'text' and $name == strftime('%Y-%m-%d %H:%M:%f', $name)"
-colcheck(name, ::Type{JSON}) = "json_valid($name)"
+colcheck(name, ::Type{JSON3}) = "json_valid($name)"
 colcheck(name, ::Type{Serialized}) = ""
 colcheck(name, ::Type{Any}) = ""
 colcheck(name, ::Type{Union{T, Missing}}) where {T} = "($(colcheck(name, T))) or $name is null"
@@ -57,7 +58,7 @@ end
 process_insert_field(T::Type, x) = x::T
 process_insert_field(::Type{Rowid}, x) = x::Int
 process_insert_field(::Type{DateTime}, x::DateTime) = Dates.format(x, dateformat"yyyy-mm-dd HH:MM:SS.sss")
-process_insert_field(::Type{JSON}, x) = JSON3.write(x)
+process_insert_field(::Type{<:JSON3}, x) = error("Load the JSON3 package")
 function process_insert_field(::Type{Serialized}, x)
     buffer = IOBuffer()
     Serialization.serialize(buffer, x)
@@ -76,8 +77,5 @@ process_select_field(T::Type, x) = x::T
 process_select_field(::Type{Bool}, x) = Bool(x)
 process_select_field(::Type{Rowid}, x) = x::Int
 process_select_field(::Type{DateTime}, x) = DateTime(x, dateformat"yyyy-mm-dd HH:MM:SS.sss")
-process_select_field(::Type{JSON}, x) = _json_materialize(JSON3.read(x))
+process_select_field(::Type{<:JSON3}, x) = error("Load the JSON3 package")
 process_select_field(::Type{Serialized}, x) = Serialization.deserialize(IOBuffer(x))
-
-_json_materialize(x::String) = x
-_json_materialize(x) = copy(x)
