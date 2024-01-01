@@ -335,19 +335,24 @@ end
 
 @testset "between julia versions" begin
     try
-        run(`julia-17 -v`)
+        run(`/home/aplavin/.juliaup/bin/julia +1.7 -v`)
     catch
         @warn "Cannot test persistence between Julia versions"
         return
     end
     tmpfile = tempname()
     expr = """
+    push!(LOAD_PATH, "@stdlib")  # XXX: why needed?
+    import Pkg
+    Pkg.activate(temp=true)
+    Pkg.add(path="$(dirname(@__DIR__))")
+
     using SQLStore
     db = SQLite.DB("$tmpfile")
     dct = SQLDict{SQLStore.Serialized, SQLStore.JSON}(table(db, "dcttbl"))
     dct[(a=1, b=[2, 3, 4], c="5")] = ["a", "b", "c"]
     """
-    run(setenv(`julia-17 --project --startup-file=no --eval $expr`, copy(ENV); dir=dirname(@__DIR__)))
+    run(`/home/aplavin/.juliaup/bin/julia +1.7 --startup-file=no --eval $expr`)
 
     db = SQLite.DB("$tmpfile")
 
