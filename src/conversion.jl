@@ -68,7 +68,7 @@ function process_insert_field(::Type{Serialized}, x)
     return take!(buffer)
 end
 
-process_select_row(schema, row::SQLite.Row) = process_select_row(schema, row, Val(Tuple(Tables.columnnames(row))))
+process_select_row(schema, row#=::SQLite.Row=#) = process_select_row(schema, row, Val(Tuple(Tables.columnnames(row))))
 @generated function process_select_row(schema, row, ::Val{names}) where {names}
     values = map(enumerate(names)) do (i, k)
         T = k == ROWID_NAME ? :(Rowid) : :(schema.$k.type)

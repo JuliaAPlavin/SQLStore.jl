@@ -1,4 +1,5 @@
-const stmt_cache = Dict{Tuple{SQLite.DB, String}, SQLite.Stmt}()
+# Dict: (db, query) => statement
+const stmt_cache = Dict{Tuple{Any, String}, Any}()
 const _lock = ReentrantLock()
 function execute(db, query, args...)
     lock(_lock) do

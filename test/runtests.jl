@@ -385,6 +385,60 @@ end
     end
 end
 
+@testitem "SQLCipher" begin
+    using SQLStore
+    using SQLCipher
+    using DBInterface: execute
+
+    dbfile = joinpath(mktempdir(), "tmp_db.sqlite")
+    
+    let db = SQLCipher.DB(dbfile)
+        execute(db, """PRAGMA key="password" """)
+
+        create_table(db, "tbl_pk", @NamedTuple{a::Int, b::String, c::SQLStore.JSON}; constraints="PRIMARY KEY (a)")
+
+        tbl = table(db, "tbl_pk")
+        @test length(tbl) == 0
+        for i in 1:5
+            push!(tbl, (a=i, b="xyz $i", c=Dict("key" => "value $i")))
+        end
+        @test length(tbl) == 5
+        append!(tbl, [
+            (a=i, b="xyz $i", c=Dict("key" => "value $i"))
+            for i in 6:10
+        ])
+        @test length(tbl) == 10
+
+        @test schema(tbl).names == (:a, :b, :c)
+        @test count((;a=3), tbl) == 1
+        @test any("a >= 3", tbl)
+    end
+
+    let
+        db = SQLCipher.DB(dbfile)
+        @test_throws "not a database" table(db, "tbl_pk")
+    end
+
+    let
+        db = SQLCipher.DB(dbfile)
+        execute(db, """PRAGMA key="password_xxx" """)
+        @test_throws "not a database" table(db, "tbl_pk")
+    end
+
+    let
+        db = SQLCipher.DB(dbfile)
+        execute(db, """PRAGMA key="password" """)
+    
+        tbl = table(db, "tbl_pk")
+
+        @test length(tbl) == 10
+
+        @test schema(tbl).names == (:a, :b, :c)
+        @test count((;a=3), tbl) == 1
+        @test any("a >= 3", tbl)
+    end
+end
+
 @testitem "_" begin
     import CompatHelperLocal as CHL
     CHL.@check()
