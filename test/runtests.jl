@@ -4,6 +4,7 @@ using TestItemRunner
 
 
 @testitem "create table" begin
+    using SQLite
     using Dates: DateTime
 
     db = SQLite.DB()
@@ -19,6 +20,7 @@ using TestItemRunner
 end
 
 @testitem "coltypes" begin
+    using SQLite
     using Dates: DateTime
 
     db = SQLite.DB()
@@ -30,6 +32,7 @@ end
 end
 
 @testitem "single table end-to-end" begin
+    using SQLite
     using Dates: DateTime, now
 
     db = SQLite.DB()
@@ -179,6 +182,8 @@ end
 end
 
 @testitem "rowid column" begin
+    using SQLite
+
     db = SQLite.DB()
     create_table(db, "tbl_rowid1", @NamedTuple{x::Int})
     create_table(db, "tbl_rowid2", @NamedTuple{x::Union{Int, Missing}})
@@ -195,6 +200,8 @@ end
 end
 
 @testitem "more complex types" begin
+    using SQLite
+
     tbl = create_table(SQLite.DB(), "tbl_nt", @NamedTuple{a::Union{Int, Missing}, b::SQLStore.JSON, c::SQLStore.Serialized})
     # all are valid...
     push!(tbl, (a=1, b=Dict(:a => 5), c=[1, 2, 3]))
@@ -213,6 +220,8 @@ if Threads.nthreads() == 1
     @warn "Julia is started with a single thread, cannot test multithreading"
 end
 @testitem "multithreaded" begin
+    using SQLite
+
     tbl = create_table(SQLite.DB(), "tbl_thread", @NamedTuple{a::Union{Int, Missing}, b::SQLStore.Serialized, c::SQLStore.JSON})
     N = 1000
     @sync for i in 1:N
@@ -235,6 +244,8 @@ end
 end
 
 @testitem "dict basic" begin
+    using SQLite
+
     db = SQLite.DB()
     dct_base = SQLDict{String, Int}(table(db, "dcttbl"))
     dct_on = SQLDictON{String, Int}(table(db, "dcttbl"))
@@ -316,6 +327,8 @@ end
 end
 
 @testitem "dict complex types" begin
+    using SQLite
+
     db = SQLite.DB()
     dct_base = SQLDict{SQLStore.Serialized, SQLStore.JSON}(table(db, "dct2"))
     dct_on = SQLDictON{SQLStore.Serialized, SQLStore.JSON}(table(db, "dct2"))
@@ -339,6 +352,7 @@ end
 end
 
 @testitem "between julia versions" begin
+    using SQLite
     try
         run(`/home/aplavin/.juliaup/bin/julia +1.7 -v`)
 
@@ -351,6 +365,7 @@ end
         Pkg.add(path="$(dirname(@__DIR__))")
 
         using SQLStore
+        using SQLite
         db = SQLite.DB("$tmpfile")
         dct = SQLDict{SQLStore.Serialized, SQLStore.JSON}(table(db, "dcttbl"))
         dct[(a=1, b=[2, 3, 4], c="5")] = ["a", "b", "c"]
@@ -386,7 +401,6 @@ end
 end
 
 @testitem "SQLCipher" begin
-    using SQLStore
     using SQLCipher
     using DBInterface: execute
 

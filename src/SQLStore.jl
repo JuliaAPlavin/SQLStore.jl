@@ -10,11 +10,9 @@ using FlexiMaps: flatmap
 using InvertedIndices: Not
 import DataAPI: All, Cols, ncol, nrow
 import StatsBase: sample
-import SQLite
 using Serialization
 
 export
-    SQLite,
     create_table, table,
     update!, updateonly!, updatesome!,
     deleteonly!, deletesome!,
