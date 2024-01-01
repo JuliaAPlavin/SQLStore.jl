@@ -22,34 +22,35 @@ end
 
 @testitem "coltypes" begin
     using SQLite
-    using Dates: DateTime
+    using Dates
 
     db = SQLite.DB()
-    create_table(db, "tbl_types", @NamedTuple{a::Int, b::String, c::SQLStore.JSON3, d::DateTime, e::Bool, f::Float64, g::Union{Missing,Int}}; constraints="PRIMARY KEY (a)")
+    create_table(db, "tbl_types", @NamedTuple{a::Int, b::String, c::SQLStore.JSON3, d::DateTime, e::Bool, f::Float64, g::Union{Missing,Int}, h::Date, k::Union{Missing,Time}, l::Union{Missing,SQLStore.Serialized}}; constraints="PRIMARY KEY (a)")
     tbl = table(db, "tbl_types")
-    push!(tbl, (a=1, b="xyz", c=Dict(:key => "value"), d=DateTime(2020, 1, 2, 3, 4, 1), e=true, f=1.0, g=5))
+    row = (a=1, b="xyz", c=Dict(:key => "value"), d=DateTime(2020, 1, 2, 3, 4, 1), e=true, f=1.0, g=5, h=Date(2020, 5, 6), k=Time(1, 2, 3), l=1+2im)
+    push!(tbl, row)
     @test length(tbl) == 1
-    @test only(tbl) == (a=1, b="xyz", c=Dict(:key => "value"), d=DateTime(2020, 1, 2, 3, 4, 1), e=true, f=1.0, g=5)
+    @test only(tbl) == row
 end
 
 @testitem "single table end-to-end" begin
     using SQLite
-    using Dates: DateTime, now
+    using Dates
 
     db = SQLite.DB()
-    tbl = create_table(db, "tbl_pk", @NamedTuple{a::Int, b::String, c::SQLStore.JSON3, d::DateTime}; constraints="PRIMARY KEY (a)")
+    tbl = create_table(db, "tbl_pk", @NamedTuple{a::Int, b::String, c::SQLStore.JSON3, d::DateTime, e::Date, f::SQLStore.Serialized}; constraints="PRIMARY KEY (a)")
 
     @testset "populate table" begin
         @test length(tbl) == 0
         @test isempty(tbl)
         for i in 1:5
-            push!(tbl, (a=i, b="xyz $i", c=Dict("key" => "value $i"), d=DateTime(2020, 1, 2, 3, 4, i)))
+            push!(tbl, (a=i, b="xyz $i", c=Dict("key" => "value $i"), d=DateTime(2020, 1, 2, 3, 4, i), e=Date(2022, 1, i), f=1+i*im))
         end
-        @test_throws SQLite.SQLiteException push!(tbl, (a=1, b="", c=Dict(), d=now()))
+        @test_throws SQLite.SQLiteException push!(tbl, (a=1, b="", c=Dict(), d=now(), e=Date(2000), f=1+1im))
         @test !isempty(tbl)
         @test length(tbl) == 5
         append!(tbl, [
-            (a=i, b="xyz $i", c=Dict("key" => "value $i"), d=DateTime(2020, 1, 2, 3, 4, i))
+            (a=i, b="xyz $i", c=Dict("key" => "value $i"), d=DateTime(2020, 1, 2, 3, 4, i), e=Date(2022, 1, i), f=1+i*im)
             for i in 6:10
         ])
         @test length(tbl) == 10
@@ -57,11 +58,11 @@ end
     end
 
     @testset "summaries" begin
-        @test schema(tbl).names == (:a, :b, :c, :d)
-        @test schema(tbl).types == (Int, String, Any, DateTime)
-        @test columnnames(tbl) == (:a, :b, :c, :d)
+        @test schema(tbl).names == (:a, :b, :c, :d, :e, :f)
+        @test schema(tbl).types == (Int, String, Any, DateTime, Date, Any)
+        @test columnnames(tbl) == (:a, :b, :c, :d, :e, :f)
         @test nrow(tbl) == 10
-        @test ncol(tbl) == 4
+        @test ncol(tbl) == 6
         @test count("a = 3", tbl) == 1
         @test count((;a=3), tbl) == 1
         @test count("a >= 3", tbl) == 8
@@ -69,14 +70,14 @@ end
     end
 
     @testset "select" begin
-        row = (a=3, b="xyz 3", c=Dict(:key => "value 3"), d=DateTime(2020, 1, 2, 3, 4, 3))
+        row = (a=3, b="xyz 3", c=Dict(:key => "value 3"), d=DateTime(2020, 1, 2, 3, 4, 3), e=Date(2022, 1, 3), f=1+3im)
         @test collect(tbl)[3] == row
         @test collect(tbl, WithRowid())[3] == (; _rowid_=3, row...)
         @test collect(tbl, All())[3] == row
         @test collect(tbl, Cols(:a, :b))[3] == (; a=3, b="xyz 3")
         @test collect(tbl, Cols(:a, Rowid(), :b))[3] == (; a=3, _rowid_=3, b="xyz 3")
-        @test collect(tbl, Not(:c))[3] == (a=3, b="xyz 3", d=DateTime(2020, 1, 2, 3, 4, 3))
-        @test collect(tbl, Not((:c, :d)))[3] == (a=3, b="xyz 3")
+        @test collect(tbl, Not(:c))[3] == (a=3, b="xyz 3", d=DateTime(2020, 1, 2, 3, 4, 3), e=Date(2022, 1, 3), f=1+3im)
+        @test collect(tbl, Not((:c, :d)))[3] == (a=3, b="xyz 3", e=Date(2022, 1, 3), f=1+3im)
 
         @test filter("a = 3", tbl) == [row]
         @test filter(("a = ?", 3), tbl) == [row]

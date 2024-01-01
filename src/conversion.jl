@@ -32,6 +32,8 @@ coltype(::Type{Int}) = "int not null"
 coltype(::Type{Float64}) = "real not null"
 coltype(::Type{String}) = "text not null"
 coltype(::Type{DateTime}) = "text not null"
+coltype(::Type{Date}) = "text not null"
+coltype(::Type{Time}) = "text not null"
 coltype(::Type{JSON3}) = "text not null"
 coltype(::Type{Serialized}) = "blob not null"
 coltype(::Type{Any}) = ""
@@ -42,9 +44,11 @@ colcheck(name, ::Type{Int}) = "typeof($name) = 'integer'"
 colcheck(name, ::Type{Float64}) = "typeof($name) = 'real'"
 colcheck(name, ::Type{String}) = "typeof($name) = 'text'"
 colcheck(name, ::Type{DateTime}) = "typeof($name) = 'text' and $name == strftime('%Y-%m-%d %H:%M:%f', $name)"
+colcheck(name, ::Type{Date}) = "typeof($name) = 'text' and $name == strftime('%Y-%m-%d', $name)"
+colcheck(name, ::Type{Time}) = "typeof($name) = 'text' and $name == strftime('%H:%M:%f', $name)"
 colcheck(name, ::Type{JSON3}) = "json_valid($name)"
-colcheck(name, ::Type{Serialized}) = ""
-colcheck(name, ::Type{Any}) = ""
+colcheck(name, ::Type{Serialized}) = "1=1"
+colcheck(name, ::Type{Any}) = "1=1"
 colcheck(name, ::Type{Union{T, Missing}}) where {T} = "($(colcheck(name, T))) or $name is null"
 
 
@@ -56,8 +60,12 @@ colcheck(name, ::Type{Union{T, Missing}}) where {T} = "($(colcheck(name, T))) or
     :( NamedTuple{$names}(($(values...),)) )
 end
 process_insert_field(T::Type, x) = x::T
+process_insert_field(::Type{Union{Missing, T}}, x::Missing) where {T} = x
+process_insert_field(::Type{Union{Missing, T}}, x) where {T} = process_insert_field(T, x)
 process_insert_field(::Type{Rowid}, x) = x::Int
 process_insert_field(::Type{DateTime}, x::DateTime) = Dates.format(x, dateformat"yyyy-mm-dd HH:MM:SS.sss")
+process_insert_field(::Type{Date}, x::Date) = Dates.format(x, dateformat"yyyy-mm-dd")
+process_insert_field(::Type{Time}, x::Time) = Dates.format(x, dateformat"HH:MM:SS.sss")
 process_insert_field(::Type{<:JSON3}, x) = error("Load the JSON3 package")
 function process_insert_field(::Type{Serialized}, x)
     buffer = IOBuffer()
@@ -74,8 +82,12 @@ process_select_row(schema, row#=::SQLite.Row=#) = process_select_row(schema, row
     :( NamedTuple{$names}(($(values...),)) )
 end
 process_select_field(T::Type, x) = x::T
+process_select_field(::Type{Union{Missing, T}}, x::Missing) where {T} = x
+process_select_field(::Type{Union{Missing, T}}, x) where {T} = process_select_field(T, x)
 process_select_field(::Type{Bool}, x) = Bool(x)
 process_select_field(::Type{Rowid}, x) = x::Int
 process_select_field(::Type{DateTime}, x) = DateTime(x, dateformat"yyyy-mm-dd HH:MM:SS.sss")
+process_select_field(::Type{Date}, x) = Date(x, dateformat"yyyy-mm-dd")
+process_select_field(::Type{Time}, x) = Time(x, dateformat"HH:MM:SS.sss")
 process_select_field(::Type{<:JSON3}, x) = error("Load the JSON3 package")
 process_select_field(::Type{Serialized}, x) = Serialization.deserialize(IOBuffer(x))

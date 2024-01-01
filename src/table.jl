@@ -107,7 +107,7 @@ function parse_sql_to_schema(sql::AbstractString)
     types = [
         [
             TM
-            for T in [Bool, Int, Float64, String, DateTime, JSON3, Serialized]
+            for T in [Bool, Int, Float64, String, DateTime, Date, Time, JSON3, Serialized]
             for TM in [T, Union{T, Missing}]
         ];
         # don't need missing:
